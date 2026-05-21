@@ -635,6 +635,9 @@ namespace {
   }
 
   bool overridePresenceIsSemantic(const std::vector<std::string>& path) {
+    if (path.size() == 3 && path[0] == "widget" && path[2] == "type") {
+      return true;
+    }
     if (path.size() != 5 || path[0] != "bar" || path[2] != "monitor") {
       return false;
     }

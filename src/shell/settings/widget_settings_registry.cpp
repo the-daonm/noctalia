@@ -244,7 +244,9 @@ namespace settings {
 
   bool isBuiltInWidgetType(std::string_view type) { return findWidgetTypeSpec(type) != nullptr; }
 
-  bool widgetTypeRequiresNamedConfig(std::string_view type) { return type == "custom_button" || type == "scripted"; }
+  bool widgetTypeRequiresNamedConfig(std::string_view type) {
+    return type == "custom_button" || type == "scripted" || type == "spacer";
+  }
 
   std::string widgetTypeForReference(const Config& cfg, std::string_view name) {
     if (const auto it = cfg.widgets.find(std::string(name)); it != cfg.widgets.end() && !it->second.type.empty()) {
