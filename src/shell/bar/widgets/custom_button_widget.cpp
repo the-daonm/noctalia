@@ -100,7 +100,7 @@ void CustomButtonWidget::create() {
   auto label = std::make_unique<Label>();
   label->setText(m_labelText);
   label->setFontSize(Style::fontSizeBody * m_contentScale);
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setMaxLines(1);
   label->setColor(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)));
   label->setVisible(!m_labelText.empty());
@@ -134,7 +134,7 @@ void CustomButtonWidget::doLayout(Renderer& renderer, float containerWidth, floa
 
   if (showLabel) {
     m_label->setFontSize((isVertical ? Style::fontSizeCaption : Style::fontSizeBody) * m_contentScale);
-    m_label->setBold(labelBold());
+    m_label->setFontWeight(labelFontWeight());
     m_label->setTextAlign(isVertical ? TextAlign::Center : TextAlign::Start);
     m_label->setMaxWidth(isVertical ? containerWidth : 0.0f);
     m_label->setColor(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)));

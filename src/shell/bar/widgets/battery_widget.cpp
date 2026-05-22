@@ -99,7 +99,7 @@ void BatteryWidget::createGraphicMode() {
 
   if (m_showLabel) {
     auto overlayLabel = std::make_unique<Label>();
-    overlayLabel->setBold(labelBold());
+    overlayLabel->setFontWeight(labelFontWeight());
     overlayLabel->setColor(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)));
     m_overlayLabel = overlayLabel.get();
     container->addChild(std::move(overlayLabel));
@@ -123,7 +123,7 @@ void BatteryWidget::createIconMode() {
   container->addChild(std::move(glyph));
 
   auto label = std::make_unique<Label>();
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setFontSize(Style::fontSizeBody * m_contentScale);
   label->setVisible(m_showLabel);
   m_label = label.get();

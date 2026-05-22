@@ -41,7 +41,7 @@ void ActiveWindowWidget::create() {
   m_icon = static_cast<Image*>(rootNode->addChild(std::move(icon)));
 
   auto title = std::make_unique<Label>();
-  title->setBold(labelBold());
+  title->setFontWeight(labelFontWeight());
   title->setFontSize(Style::fontSizeBody * m_contentScale);
   title->setColor(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)));
   title->setMaxWidth(m_maxWidth * m_contentScale);

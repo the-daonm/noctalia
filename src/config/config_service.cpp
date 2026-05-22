@@ -6,6 +6,7 @@
 #include "core/log.h"
 #include "ipc/ipc_service.h"
 #include "notification/notification_manager.h"
+#include "render/core/renderer.h"
 #include "util/file_utils.h"
 #include "util/string_utils.h"
 #include "wayland/wayland_connection.h"
@@ -1099,15 +1100,8 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
         bar.contactShadow = *v;
       if (auto v = finiteDouble((*barTbl)["scale"]))
         bar.scale = std::clamp(static_cast<float>(*v), 0.5f, 4.0f);
-      if (auto v = (*barTbl)["font_weight"].value<std::string>()) {
-        if (*v == "bold") {
-          bar.fontWeight = "bold";
-        } else if (*v == "regular") {
-          bar.fontWeight = "regular";
-        } else {
-          kLog.warn("bar.{}.font_weight: unknown value '{}', using regular", bar.name, *v);
-          bar.fontWeight = "regular";
-        }
+      if (auto fontWeightValue = (*barTbl)["font_weight"].value<int64_t>()) {
+        bar.fontWeight = static_cast<int>(*fontWeightValue);
       }
       if (auto* n = (*barTbl)["start"].as_array())
         bar.startWidgets = readStringArray(*n);

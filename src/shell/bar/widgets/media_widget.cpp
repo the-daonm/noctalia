@@ -61,7 +61,7 @@ void MediaWidget::create() {
   area->addChild(std::move(art));
 
   auto label = std::make_unique<Label>();
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setFontSize(Style::fontSizeBody * m_contentScale);
   label->setColor(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)));
   label->setMaxWidth(m_maxWidth * m_contentScale);

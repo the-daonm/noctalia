@@ -30,6 +30,13 @@ namespace {
   constexpr float kWorkspaceGap = Style::spaceXs;
   constexpr float kWorkspacePillDefaultHeight = Style::barGlyphSize;
   constexpr float kWorkspaceAnimDurationMs = static_cast<float>(Style::animNormal);
+
+  [[nodiscard]] FontWeight workspaceFontWeight(FontWeight baseWeight, bool minimal, bool active) {
+    if (minimal && active) {
+      return static_cast<FontWeight>(static_cast<int>(baseWeight) + 200);
+    }
+    return baseWeight;
+  }
 } // namespace
 
 WorkspacesWidget::WorkspacesWidget(CompositorPlatform& platform, wl_output* output, DisplayMode displayMode,
@@ -172,6 +179,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   const float gap = kWorkspaceGap * m_contentScale;
   const float labelFontSize = Style::fontSizeMini * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
+  const FontWeight configuredFontWeight = labelFontWeight();
 
   std::vector<std::string> labels;
   labels.reserve(workspaces.size());
@@ -206,7 +214,8 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     });
 
     if (slot.showLabel) {
-      const TextMetrics tm = renderer.measureText(labels[i], labelFontSize, FontWeight::Bold);
+      const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
+      const TextMetrics tm = renderer.measureText(labels[i], labelFontSize, slotFontWeight);
       slot.textWidth = std::max(tm.right - tm.left, tm.inkRight - tm.inkLeft);
       const float logicalCenter = (tm.left + tm.right) * 0.5f;
       const float inkCenter = (tm.inkLeft + tm.inkRight) * 0.5f;
@@ -236,7 +245,8 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
         slot.activeWidth = slot.inactiveWidth;
       }
       if (slot.showLabel) {
-        const TextMetrics tm = renderer.measureText(slot.label, labelFontSize, FontWeight::Bold);
+        const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
+        const TextMetrics tm = renderer.measureText(slot.label, labelFontSize, slotFontWeight);
         maxLabelHeight = std::max(maxLabelHeight, tm.bottom - tm.top);
       }
       continue;
@@ -291,7 +301,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       auto text = std::make_unique<Label>();
       text->setText(slot.label);
       text->setFontSize(labelFontSize);
-      text->setBold(labelBold() && (!m_minimal || ws.active));
+      text->setFontWeight(workspaceFontWeight(configuredFontWeight, m_minimal, ws.active));
       text->setColor(workspaceTextColor(ws));
       if (m_isVertical) {
         text->setBaselineMode(LabelBaselineMode::InkCentered);
@@ -373,15 +383,21 @@ void WorkspacesWidget::retarget(Renderer& renderer) {
     auto& it = m_items[i];
     const auto& ws = m_cachedState[i];
     const std::string label = workspaceLabel(ws, i);
-    if (it.label != label) {
+    const FontWeight fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, ws.active);
+    const bool labelChanged = it.label != label;
+    if (labelChanged) {
       it.label = label;
       if (it.text != nullptr) {
         it.text->setText(label);
+      }
+    }
+    if (it.text != nullptr) {
+      const bool weightChanged = it.text->fontWeight() != fontWeight;
+      it.text->setFontWeight(fontWeight);
+      if (labelChanged || weightChanged) {
         it.text->measure(renderer);
         const float fontSize = it.text->fontSize();
-        const bool labelIsBold = labelBold() && (!m_minimal || ws.active);
-        const TextMetrics tm =
-            renderer.measureText(label, fontSize, labelIsBold ? FontWeight::Bold : FontWeight::Normal);
+        const TextMetrics tm = renderer.measureText(label, fontSize, fontWeight);
         const float logCenter = (tm.left + tm.right) * 0.5f;
         const float inkCenter = (tm.inkLeft + tm.inkRight) * 0.5f;
         it.inkCenterOffset = inkCenter - logCenter;
@@ -396,7 +412,6 @@ void WorkspacesWidget::retarget(Renderer& renderer) {
     }
     if (it.text != nullptr) {
       it.text->setColor(workspaceTextColor(ws));
-      it.text->setBold(labelBold() && (!m_minimal || ws.active));
     }
   }
 

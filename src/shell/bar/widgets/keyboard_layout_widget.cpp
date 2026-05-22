@@ -318,7 +318,7 @@ void KeyboardLayoutWidget::create() {
   area->addChild(std::move(glyph));
 
   auto label = std::make_unique<Label>();
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setFontSize(Style::fontSizeBody * m_contentScale);
   label->setText("--");
   m_label = label.get();
@@ -354,7 +354,7 @@ void KeyboardLayoutWidget::doLayout(Renderer& renderer, float containerWidth, fl
   m_label->setTextAlign(m_isVertical ? TextAlign::Center : TextAlign::Start);
   if (!m_hideLabel) {
     const float stableLabelWidth =
-        std::round(renderer.measureText(kVerticalStableLabel, m_label->fontSize(), FontWeight::Bold).width);
+        std::round(renderer.measureText(kVerticalStableLabel, m_label->fontSize(), labelFontWeight()).width);
     m_label->setMinWidth(m_isVertical ? std::min(containerWidth, stableLabelWidth) : 0.0f);
     m_label->measure(renderer);
   }

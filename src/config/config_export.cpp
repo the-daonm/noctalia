@@ -168,7 +168,7 @@ namespace config_export {
       table.insert_or_assign("shadow", bar.shadow);
       table.insert_or_assign("contact_shadow", bar.contactShadow);
       table.insert_or_assign("scale", static_cast<double>(bar.scale));
-      table.insert_or_assign("font_weight", bar.fontWeight);
+      table.insert_or_assign("font_weight", static_cast<std::int64_t>(bar.fontWeight));
       table.insert_or_assign("start", stringArray(bar.startWidgets));
       table.insert_or_assign("center", stringArray(bar.centerWidgets));
       table.insert_or_assign("end", stringArray(bar.endWidgets));

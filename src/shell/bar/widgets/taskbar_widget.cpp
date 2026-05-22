@@ -88,13 +88,13 @@ namespace {
   }
 
   [[nodiscard]] float fitBadgeFontSize(Renderer& renderer, std::string_view label, float maxWidth, float maxHeight,
-                                       float scale) {
+                                       float scale, FontWeight fontWeight) {
     float fontSize = std::round(Style::fontSizeMini * scale);
     const float minFontSize = std::round(8.0f * scale);
     const float maxTextWidth = maxWidth * 0.82f;
     const float maxTextHeight = maxHeight * 0.82f;
     while (fontSize >= minFontSize) {
-      const auto metrics = renderer.measureText(label, fontSize, FontWeight::Bold);
+      const auto metrics = renderer.measureText(label, fontSize, fontWeight);
       const float textWidth = std::max(0.0f, metrics.right - metrics.left);
       const float textHeight = std::max(0.0f, metrics.bottom - metrics.top);
       if (textWidth <= maxTextWidth && textHeight <= maxTextHeight) {
@@ -111,8 +111,8 @@ namespace {
   };
 
   [[nodiscard]] WorkspaceDiscSize measureWorkspaceDiscSize(Renderer& renderer, std::string_view label, float fontSize,
-                                                           float minHeight, float scale) {
-    const auto metrics = renderer.measureText(label, fontSize, FontWeight::Bold);
+                                                           float minHeight, float scale, FontWeight fontWeight) {
+    const auto metrics = renderer.measureText(label, fontSize, fontWeight);
     const float textW = std::max(0.0f, metrics.right - metrics.left);
     const float pad = Style::spaceXs * scale;
     WorkspaceDiscSize size{};
@@ -247,6 +247,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
   const float tileSize = std::round(iconSize + tilePadding * 2.0f);
   const float groupBorderInset = Style::borderWidth * m_contentScale;
   const float groupOutlineInset = m_workspaceGroupCapsule ? groupBorderInset : 0.0f;
+  const FontWeight fontWeight = labelFontWeight();
   const auto workspaceAxisHandler = [this](const InputArea::PointerData& data) -> bool {
     if (!m_groupByWorkspace) {
       return false;
@@ -369,7 +370,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       float maxCrossOverhang = 0.0f;
       for (const auto& wsm : m_workspaces) {
         const auto disc =
-            measureWorkspaceDiscSize(renderer, wsm.label, externalBadgeFontSize, badgeBase, m_contentScale);
+            measureWorkspaceDiscSize(renderer, wsm.label, externalBadgeFontSize, badgeBase, m_contentScale, fontWeight);
         maxMainOverhang = std::max(
             maxMainOverhang,
             std::ceil(externalBadgeMainOverhang(m_workspaceLabelPlacement, m_vertical ? disc.height : disc.width)));
@@ -406,10 +407,10 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       styleWorkspaceDisc(*badge, tileSize, tileSize, ws.workspace);
       auto* badgePtr = static_cast<Box*>(area->addChild(std::move(badge)));
 
-      const float badgeFontSize = fitBadgeFontSize(renderer, ws.label, tileSize, tileSize, m_contentScale);
+      const float badgeFontSize = fitBadgeFontSize(renderer, ws.label, tileSize, tileSize, m_contentScale, fontWeight);
       auto badgeText = std::make_unique<Label>();
       badgeText->setText(ws.label);
-      badgeText->setBold(labelBold());
+      badgeText->setFontWeight(fontWeight);
       badgeText->setFontSize(badgeFontSize);
       badgeText->setColor(workspaceTextColor(ws.workspace));
       badgeText->measure(renderer);
@@ -441,10 +442,11 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       styleWorkspaceDisc(*badge, disc.width, disc.height, ws.workspace);
       auto* badgePtr = static_cast<Box*>(badgeHit->addChild(std::move(badge)));
 
-      const float badgeFontSize = fitBadgeFontSize(renderer, ws.label, disc.width, disc.height, m_contentScale);
+      const float badgeFontSize =
+          fitBadgeFontSize(renderer, ws.label, disc.width, disc.height, m_contentScale, fontWeight);
       auto badgeText = std::make_unique<Label>();
       badgeText->setText(ws.label);
-      badgeText->setBold(labelBold());
+      badgeText->setFontWeight(fontWeight);
       badgeText->setFontSize(badgeFontSize);
       badgeText->setColor(workspaceTextColor(ws.workspace));
       badgeText->measure(renderer);
@@ -477,7 +479,8 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       const bool emptyWorkspace = tasks.empty();
       WorkspaceDiscSize disc{};
       if (externalBadge) {
-        disc = measureWorkspaceDiscSize(renderer, ws.label, externalBadgeFontSize, badgeBase, m_contentScale);
+        disc =
+            measureWorkspaceDiscSize(renderer, ws.label, externalBadgeFontSize, badgeBase, m_contentScale, fontWeight);
       }
 
       float groupPadStart = groupPadMain;

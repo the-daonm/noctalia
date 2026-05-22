@@ -14,7 +14,7 @@ void DebugIndicatorWidget::create() {
 
   chip->setFill(colorSpecFromRole(ColorRole::Error));
   chip->label()->setColor(colorSpecFromRole(ColorRole::OnError));
-  chip->label()->setBold(labelBold());
+  chip->label()->setFontWeight(labelFontWeight());
   chip->setText("DEBUG");
   chip->clearBorder();
   chip->setPadding(2.0f, Style::spaceSm);

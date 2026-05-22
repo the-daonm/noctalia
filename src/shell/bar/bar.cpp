@@ -1368,6 +1368,7 @@ void Bar::destroyInstance(std::uint32_t outputName) {
 
 void Bar::populateWidgets(BarInstance& instance) {
   const auto& widgetConfigs = m_config->config().widgets;
+  const FontWeight labelFontWeight = static_cast<FontWeight>(instance.barConfig.fontWeight);
   auto createWidgets = [&](const std::vector<std::string>& names, std::vector<std::unique_ptr<Widget>>& dest) {
     for (const auto& name : names) {
       auto widget =
@@ -1381,7 +1382,7 @@ void Bar::populateWidgets(BarInstance& instance) {
           widget->setAnchor(wcPtr->getBool("anchor", false));
         }
         widget->setBarCapsuleSpec(resolveWidgetBarCapsuleSpec(instance.barConfig, wcPtr));
-        widget->setLabelBold(barFontWeightIsBold(instance.barConfig.fontWeight));
+        widget->setLabelFontWeight(labelFontWeight);
         if (wcPtr != nullptr && wcPtr->hasSetting("color")) {
           widget->setWidgetForeground(wcPtr->getOptionalColorSpec("color", "widget." + name + ".color"));
         } else if (instance.barConfig.widgetColor.has_value()) {
@@ -1403,7 +1404,7 @@ void Bar::populateWidgets(BarInstance& instance) {
                               instance.barConfig.name, static_cast<float>(instance.barConfig.widgetSpacing));
   if (debugWidget != nullptr) {
     debugWidget->setConfigName("debug_indicator");
-    debugWidget->setLabelBold(barFontWeightIsBold(instance.barConfig.fontWeight));
+    debugWidget->setLabelFontWeight(labelFontWeight);
     debugWidget->create();
     instance.endWidgets.insert(instance.endWidgets.begin(), std::move(debugWidget));
   }

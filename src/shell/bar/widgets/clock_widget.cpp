@@ -70,14 +70,14 @@ void ClockWidget::create() {
       [this](const InputArea::PointerData& /*data*/) { requestPanelToggle("control-center", "calendar"); });
 
   auto label = std::make_unique<Label>();
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setTextAlign(TextAlign::Center);
   label->setFontSize(Style::fontSizeBody * m_contentScale);
   m_label = label.get();
   area->addChild(std::move(label));
 
   auto secondaryLabel = std::make_unique<Label>();
-  secondaryLabel->setBold(labelBold());
+  secondaryLabel->setFontWeight(labelFontWeight());
   secondaryLabel->setTextAlign(TextAlign::Center);
   secondaryLabel->setFontSize(Style::fontSizeBody * m_contentScale * kStackedSecondaryScale);
   secondaryLabel->setVisible(false);
@@ -104,12 +104,13 @@ void ClockWidget::doLayout(Renderer& renderer, float containerWidth, float conta
   const float stackedSecondaryScale = noCapsule ? kStackedSecondaryScaleNoCapsule : kStackedSecondaryScale;
   float primaryFontSize = Style::fontSizeBody * m_contentScale * (showSecondary ? stackedPrimaryScale : 1.0f);
   float secondaryFontSize = Style::fontSizeBody * m_contentScale * stackedSecondaryScale;
+  const FontWeight fontWeight = labelFontWeight();
 
   // Horizontal clocks use single-line metrics unless the configured format
   // explicitly contains line breaks.
   m_label->setFontSize(primaryFontSize);
-  m_label->setBold(labelBold());
-  m_secondaryLabel->setBold(labelBold());
+  m_label->setFontWeight(fontWeight);
+  m_secondaryLabel->setFontWeight(fontWeight);
   m_secondaryLabel->setFontSize(secondaryFontSize);
   m_label->setMaxLines(m_isVertical ? 0 : 1);
   m_label->setMinWidth(0.0f);
@@ -140,9 +141,9 @@ void ClockWidget::doLayout(Renderer& renderer, float containerWidth, float conta
 
   if (showSecondary) {
     const auto primaryMetrics =
-        renderer.measureText(m_lastPrimaryText, primaryFontSize, FontWeight::Bold, 0.0f, 1, TextAlign::Start);
+        renderer.measureText(m_lastPrimaryText, primaryFontSize, fontWeight, 0.0f, 1, TextAlign::Start);
     const auto secondaryMetrics =
-        renderer.measureText(m_lastSecondaryText, secondaryFontSize, FontWeight::Normal, 0.0f, 1, TextAlign::Start);
+        renderer.measureText(m_lastSecondaryText, secondaryFontSize, fontWeight, 0.0f, 1, TextAlign::Start);
     const float primaryInkWidth = std::max(0.0f, primaryMetrics.inkRight - primaryMetrics.inkLeft);
     const float secondaryInkWidth = std::max(0.0f, secondaryMetrics.inkRight - secondaryMetrics.inkLeft);
     width = std::max({width, primaryInkWidth, secondaryInkWidth});

@@ -53,7 +53,7 @@ void BrightnessWidget::create() {
   area->addChild(std::move(glyph));
 
   auto label = std::make_unique<Label>();
-  label->setBold(labelBold());
+  label->setFontWeight(labelFontWeight());
   label->setFontSize(Style::fontSizeBody * m_contentScale);
   label->setVisible(m_showLabel);
   m_label = label.get();

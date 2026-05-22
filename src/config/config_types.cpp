@@ -284,8 +284,6 @@ std::optional<ColorSpec> WidgetConfig::getOptionalColorSpec(const std::string& k
 
 bool WidgetConfig::hasSetting(const std::string& key) const { return settings.find(key) != settings.end(); }
 
-bool barFontWeightIsBold(std::string_view fontWeight) noexcept { return fontWeight != "regular"; }
-
 WidgetBarCapsuleSpec resolveWidgetBarCapsuleSpec(const BarConfig& bar, const WidgetConfig* widget) {
   WidgetBarCapsuleSpec spec{};
   const bool widgetHasCapsuleKey = widget != nullptr && widget->hasSetting("capsule");
