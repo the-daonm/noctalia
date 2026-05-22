@@ -592,6 +592,7 @@ _noctalia_sources = files(
   'src/ui/controls/keybind_recorder.cpp',
   'src/ui/controls/label.cpp',
   'src/ui/controls/list_editor.cpp',
+  'src/ui/controls/color_swatch_preview.cpp',
   'src/ui/controls/progress_bar.cpp',
   'src/ui/controls/radio_button.cpp',
   'src/ui/controls/scrollbar.cpp',

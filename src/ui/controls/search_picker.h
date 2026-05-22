@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/controls/flex.h"
 #include "ui/controls/virtual_list_view.h"
 
@@ -21,6 +22,7 @@ struct SearchPickerOption {
   std::string description;
   bool enabled = true;
   std::string icon;
+  ColorSwatchPreview preview = {};
 };
 
 class SearchPicker : public Flex, private VirtualListAdapter {

@@ -6,6 +6,7 @@
 #include "util/string_utils.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -45,6 +46,34 @@ namespace noctalia::theme {
       return stringField(item, "name");
     }
 
+    AvailablePalette::PreviewMode palettePreviewFromJson(const nlohmann::json& item, std::string_view mode) {
+      if (!item.is_object()) {
+        return {};
+      }
+      auto modeIt = item.find(std::string(mode));
+      if (modeIt == item.end() || !modeIt->is_object()) {
+        return {};
+      }
+
+      static constexpr auto kPreviewFields = std::to_array<std::string_view>({
+          "primary",
+          "secondary",
+          "tertiary",
+          "error",
+      });
+
+      AvailablePalette::PreviewMode preview;
+      preview.accents.reserve(kPreviewFields.size());
+      preview.surface = stringField(*modeIt, "surface");
+      for (const auto field : kPreviewFields) {
+        std::string color = stringField(*modeIt, field);
+        if (!color.empty()) {
+          preview.accents.push_back(std::move(color));
+        }
+      }
+      return preview;
+    }
+
     std::vector<AvailablePalette> parseCatalogFile(const std::filesystem::path& path) {
       std::ifstream in(path);
       if (!in) {
@@ -70,6 +99,8 @@ namespace noctalia::theme {
         for (const auto& item : *entries) {
           AvailablePalette palette;
           palette.name = paletteNameFromJson(item);
+          palette.preview.dark = palettePreviewFromJson(item, "dark");
+          palette.preview.light = palettePreviewFromJson(item, "light");
           if (!palette.name.empty()) {
             out.push_back(std::move(palette));
           }

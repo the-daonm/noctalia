@@ -2,6 +2,7 @@
 
 #include "core/keybind_matcher.h"
 #include "i18n/i18n.h"
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/controls/glyph.h"
 #include "ui/controls/input.h"
 #include "ui/controls/label.h"
@@ -31,6 +32,11 @@ namespace {
       setRadius(Style::scaledRadiusSm());
       setFillWidth(true);
 
+      auto preview = std::make_unique<ColorSwatchPreviewStrip>();
+      preview->setVisible(false);
+      preview->setParticipatesInLayout(false);
+      m_preview = static_cast<ColorSwatchPreviewStrip*>(addChild(std::move(preview)));
+
       auto icon = std::make_unique<Glyph>();
       icon->setGlyphSize(Style::barGlyphSize);
       icon->setVisible(false);
@@ -57,6 +63,7 @@ namespace {
     void bind(const SearchPickerOption& option, bool highlighted, bool selected, bool hovered) {
       const bool hasDetail = !option.description.empty();
       const bool hasIcon = !option.icon.empty();
+      const bool hasPreview = !option.preview.empty();
 
       if (highlighted) {
         setFill(colorSpecFromRole(ColorRole::Primary));
@@ -79,13 +86,19 @@ namespace {
         detailForeground = colorSpecFromRole(ColorRole::OnHover, 0.78f);
       }
 
+      if (m_preview != nullptr) {
+        m_preview->setMetricsFromFontSize(Style::fontSizeBody);
+        m_preview->setPreview(option.preview);
+        m_preview->setVisible(hasPreview);
+        m_preview->setParticipatesInLayout(hasPreview);
+      }
       if (m_icon != nullptr) {
-        if (hasIcon) {
+        if (hasIcon && !hasPreview) {
           m_icon->setGlyph(option.icon);
           m_icon->setColor(foreground);
         }
-        m_icon->setVisible(hasIcon);
-        m_icon->setParticipatesInLayout(hasIcon);
+        m_icon->setVisible(hasIcon && !hasPreview);
+        m_icon->setParticipatesInLayout(hasIcon && !hasPreview);
       }
       if (m_title != nullptr) {
         m_title->setText(option.label);
@@ -101,6 +114,7 @@ namespace {
     }
 
   private:
+    ColorSwatchPreviewStrip* m_preview = nullptr;
     Glyph* m_icon = nullptr;
     Flex* m_text = nullptr;
     Label* m_title = nullptr;

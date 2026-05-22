@@ -12,6 +12,7 @@
 #include "render/scene/node.h"
 #include "render/scene/rect_node.h"
 #include "ui/controls/box.h"
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/controls/glyph.h"
 #include "ui/controls/label.h"
 #include "ui/controls/scrollbar.h"
@@ -261,7 +262,6 @@ void SelectDropdownPopup::buildScene(const DropdownRequest& request) {
   const bool hasIndicators = !request.indicatorColors.empty();
   const float indicatorSize = hasIndicators ? std::round(request.fontSize) : 0.0f;
   const float indicatorBorder = hasIndicators ? 1.5f : 0.0f;
-  const float indicatorInset = hasIndicators ? (indicatorSize + Style::spaceSm) : 0.0f;
 
   for (std::size_t i = 0; i < m_options.size(); ++i) {
     const float rowY = static_cast<float>(i) * m_optionHeight;
@@ -271,7 +271,17 @@ void SelectDropdownPopup::buildScene(const DropdownRequest& request) {
     rowBg->setFrameSize(rowWidth, m_optionHeight);
     auto* rowBgPtr = static_cast<RectNode*>(m_contentNode->addChild(std::move(rowBg)));
 
-    if (hasIndicators && i < request.indicatorColors.size()) {
+    const bool hasPreview = i < request.optionSwatchPreviews.size() && !request.optionSwatchPreviews[i].empty();
+    float leadingInset = 0.0f;
+    if (hasPreview) {
+      auto preview = std::make_unique<ColorSwatchPreviewStrip>();
+      preview->setMetricsFromFontSize(request.fontSize);
+      preview->setPreview(request.optionSwatchPreviews[i]);
+      const float previewY = rowY + std::round((m_optionHeight - preview->preferredHeight()) * 0.5f);
+      preview->setPosition(request.horizontalPadding, previewY);
+      leadingInset = preview->preferredWidth() + Style::spaceSm;
+      m_contentNode->addChild(std::move(preview));
+    } else if (hasIndicators && i < request.indicatorColors.size()) {
       auto indicator = std::make_unique<Box>();
       indicator->setFill(request.indicatorColors[i]);
       indicator->setBorder(colorSpecFromRole(ColorRole::Outline), indicatorBorder);
@@ -279,12 +289,13 @@ void SelectDropdownPopup::buildScene(const DropdownRequest& request) {
       indicator->setRadius(indicatorSize * 0.5f);
       indicator->setPosition(request.horizontalPadding, rowY + std::round((m_optionHeight - indicatorSize) * 0.5f));
       m_contentNode->addChild(std::move(indicator));
+      leadingInset = indicatorSize + Style::spaceSm;
     }
 
     auto label = std::make_unique<Label>();
     label->setText(m_options[i]);
     label->setFontSize(request.fontSize);
-    const float labelLeft = request.horizontalPadding + indicatorInset;
+    const float labelLeft = request.horizontalPadding + leadingInset;
     label->setMaxWidth(
         std::max(0.0f, rowWidth - labelLeft - request.horizontalPadding - request.glyphSize - Style::spaceXs));
     label->measure(m_renderContext);

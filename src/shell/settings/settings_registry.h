@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/config_service.h"
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/palette.h"
 
 #include <cstddef>
@@ -23,13 +24,15 @@ namespace settings {
     std::string value;
     std::string label;
     std::string description = {};
+    ColorSwatchPreview preview = {};
   };
 
   struct SelectSetting {
     std::vector<SelectOption> options;
     std::string selectedValue;
     bool clearOnEmpty = false;
-    bool segmented = false; // render as Segmented pill group instead of dropdown Select
+    bool segmented = false;      // render as Segmented pill group instead of dropdown Select
+    float preferredWidth = 0.0f; // 0 = default settings dropdown width
   };
 
   struct SearchPickerSetting {

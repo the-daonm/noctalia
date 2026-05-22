@@ -83,6 +83,15 @@ namespace settings {
       return labels;
     }
 
+    std::vector<ColorSwatchPreview> optionSwatchPreviews(const std::vector<SelectOption>& options) {
+      std::vector<ColorSwatchPreview> previews;
+      previews.reserve(options.size());
+      for (const auto& opt : options) {
+        previews.push_back(opt.preview);
+      }
+      return previews;
+    }
+
     std::vector<SelectOption> sessionActionVariantOptions() {
       std::vector<SelectOption> options;
       for (const auto& variant : kSessionActionButtonVariants) {
@@ -1097,6 +1106,7 @@ namespace settings {
 
       auto select = std::make_unique<Select>();
       select->setOptions(optionLabels(setting.options));
+      select->setColorSwatchPreviews(optionSwatchPreviews(setting.options));
       if (const auto index = optionIndex(setting.options, setting.selectedValue)) {
         select->setSelectedIndex(*index);
       } else if (!setting.selectedValue.empty()) {
@@ -1106,7 +1116,8 @@ namespace settings {
       select->setFontSize(Style::fontSizeBody * scale);
       select->setControlHeight(Style::controlHeight * scale);
       select->setGlyphSize(Style::fontSizeBody * scale);
-      select->setSize(190.0f * scale, Style::controlHeight * scale);
+      const float selectWidth = setting.preferredWidth > 0.0f ? setting.preferredWidth : 190.0f;
+      select->setSize(selectWidth * scale, Style::controlHeight * scale);
       auto options = setting.options;
       const bool clearOnEmpty = setting.clearOnEmpty;
       select->setOnSelectionChanged([configService = ctx.configService, clearOverride = ctx.clearOverride,

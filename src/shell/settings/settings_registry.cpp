@@ -59,13 +59,36 @@ namespace settings {
       return SelectSetting{std::move(opts), std::string(selected)};
     }
 
-    SelectSetting builtinPaletteSelect(std::string_view selected) {
+    ColorSwatchPreview palettePreviewFromPalette(const ::Palette& palette) {
+      return ColorSwatchPreview{
+          .surface = fixedColorSpec(palette.surface),
+          .swatches =
+              {
+                  fixedColorSpec(palette.primary),
+                  fixedColorSpec(palette.secondary),
+                  fixedColorSpec(palette.tertiary),
+                  fixedColorSpec(palette.error),
+              },
+      };
+    }
+
+    ColorSwatchPreview builtinPalettePreview(const noctalia::theme::BuiltinPalette& palette, ThemeMode mode) {
+      return palettePreviewFromPalette(mode == ThemeMode::Light ? palette.light.palette : palette.dark.palette);
+    }
+
+    SelectSetting builtinPaletteSelect(std::string_view selected, ThemeMode mode) {
       std::vector<SelectOption> opts;
       opts.reserve(noctalia::theme::builtinPalettes().size());
       for (const auto& palette : noctalia::theme::builtinPalettes()) {
-        opts.push_back(SelectOption{std::string(palette.name), std::string(palette.name)});
+        opts.push_back(SelectOption{
+            .value = std::string(palette.name),
+            .label = std::string(palette.name),
+            .description = {},
+            .preview = builtinPalettePreview(palette, mode),
+        });
       }
-      return SelectSetting{std::move(opts), std::string(selected)};
+      return SelectSetting{
+          .options = std::move(opts), .selectedValue = std::string(selected), .preferredWidth = 240.0f};
     }
 
     SelectSetting wallpaperSchemeSelect(std::string_view selected) {
@@ -250,7 +273,8 @@ namespace settings {
     if (cfg.theme.source == PaletteSource::Builtin) {
       entries.push_back(makeEntry("appearance", "theme", tr("settings.schema.appearance.builtin-palette.label"),
                                   tr("settings.schema.appearance.builtin-palette.description"), {"theme", "builtin"},
-                                  builtinPaletteSelect(cfg.theme.builtinPalette), "builtin palette colors"));
+                                  builtinPaletteSelect(cfg.theme.builtinPalette, cfg.theme.mode),
+                                  "builtin palette colors"));
     } else if (cfg.theme.source == PaletteSource::Wallpaper) {
       entries.push_back(makeEntry("appearance", "theme",
                                   tr("settings.schema.appearance.wallpaper-generation-scheme.label"),

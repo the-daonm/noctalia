@@ -43,6 +43,35 @@ namespace {
 
   constexpr float kBodyMaxWidth = 1280.0f;
 
+  bool useLightPalettePreview(ThemeMode mode) { return mode == ThemeMode::Light; }
+
+  ColorSwatchPreview palettePreviewFromMetadata(const noctalia::theme::AvailablePalette::PreviewMode& metadata) {
+    ColorSwatchPreview preview;
+    Color surface;
+    if (tryParseHexColor(metadata.surface, surface)) {
+      preview.surface = fixedColorSpec(surface);
+    }
+    preview.swatches.reserve(metadata.accents.size());
+    for (const auto& hexColor : metadata.accents) {
+      Color color;
+      if (tryParseHexColor(hexColor, color)) {
+        preview.swatches.push_back(fixedColorSpec(color));
+      }
+    }
+    return preview;
+  }
+
+  ColorSwatchPreview availablePalettePreview(const noctalia::theme::AvailablePalette& palette, ThemeMode mode) {
+    if (useLightPalettePreview(mode)) {
+      ColorSwatchPreview preview = palettePreviewFromMetadata(palette.preview.light);
+      if (!preview.empty()) {
+        return preview;
+      }
+      return palettePreviewFromMetadata(palette.preview.dark);
+    }
+    return palettePreviewFromMetadata(palette.preview.dark);
+  }
+
   std::unique_ptr<Label> makeLabel(std::string_view text, float fontSize, const ColorSpec& color, bool bold = false) {
     auto label = std::make_unique<Label>();
     label->setText(text);
@@ -271,11 +300,22 @@ settings::RegistryEnvironment SettingsWindow::buildRegistryEnvironment() const {
   env.niriOverviewTypeToLaunchSupported = (m_wayland != nullptr && compositors::isNiri());
   env.ddcutilAvailable = (m_dependencies != nullptr && m_dependencies->hasDdcutil());
   env.gammaControlAvailable = (m_wayland != nullptr && m_wayland->hasGammaControl());
+  const ThemeMode previewMode = m_config != nullptr ? m_config->config().theme.mode : ThemeMode::Dark;
   for (const auto& paletteInfo : noctalia::theme::availableCommunityPalettes()) {
-    env.communityPalettes.push_back(settings::SelectOption{paletteInfo.name, paletteInfo.name});
+    env.communityPalettes.push_back(settings::SelectOption{
+        .value = paletteInfo.name,
+        .label = paletteInfo.name,
+        .description = {},
+        .preview = availablePalettePreview(paletteInfo, previewMode),
+    });
   }
   for (const auto& p : noctalia::theme::availableCustomPalettes()) {
-    env.customPalettes.push_back(settings::SelectOption{p.name, p.name});
+    env.customPalettes.push_back(settings::SelectOption{
+        .value = p.name,
+        .label = p.name,
+        .description = {},
+        .preview = availablePalettePreview(p, previewMode),
+    });
   }
   for (const auto& t : noctalia::theme::CommunityTemplateService::availableTemplates()) {
     env.communityTemplates.push_back(settings::SelectOption{t.id, t.displayName});

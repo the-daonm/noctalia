@@ -9,6 +9,7 @@
 #include "render/scene/node.h"
 #include "render/scene/rect_node.h"
 #include "ui/controls/box.h"
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/controls/glyph.h"
 #include "ui/controls/label.h"
 #include "ui/controls/select_popup_context.h"
@@ -39,6 +40,11 @@ Select::Select() {
   auto triggerIndicator = std::make_unique<Box>();
   triggerIndicator->setVisible(false);
   m_triggerIndicator = static_cast<Box*>(addChild(std::move(triggerIndicator)));
+
+  auto triggerPreview = std::make_unique<ColorSwatchPreviewStrip>();
+  triggerPreview->setVisible(false);
+  triggerPreview->setParticipatesInLayout(false);
+  m_triggerPreview = static_cast<ColorSwatchPreviewStrip*>(addChild(std::move(triggerPreview)));
 
   auto triggerLabel = std::make_unique<Label>();
   m_triggerLabel = static_cast<Label*>(addChild(std::move(triggerLabel)));
@@ -182,6 +188,11 @@ void Select::setOptionIndicators(std::vector<ColorSpec> colors) {
   markLayoutDirty();
 }
 
+void Select::setColorSwatchPreviews(std::vector<ColorSwatchPreview> previews) {
+  m_optionSwatchPreviews = std::move(previews);
+  markLayoutDirty();
+}
+
 void Select::setOnSelectionChanged(std::function<void(std::size_t, std::string_view)> callback) {
   m_onSelectionChanged = std::move(callback);
 }
@@ -205,13 +216,29 @@ void Select::doLayout(Renderer& renderer) {
   m_triggerLabel->measure(renderer);
   m_triggerGlyph->measure(renderer);
 
-  const bool hasIndicators = !m_indicatorColors.empty();
+  const bool hasSelectedPreview =
+      m_selectedIndex < m_optionSwatchPreviews.size() && !m_optionSwatchPreviews[m_selectedIndex].empty();
+  if (m_triggerPreview != nullptr) {
+    m_triggerPreview->setMetricsFromFontSize(m_fontSize);
+    if (hasSelectedPreview) {
+      m_triggerPreview->setPreview(m_optionSwatchPreviews[m_selectedIndex]);
+    }
+    m_triggerPreview->setVisible(hasSelectedPreview);
+    m_triggerPreview->setParticipatesInLayout(hasSelectedPreview);
+  }
+
+  const float previewWidth =
+      hasSelectedPreview && m_triggerPreview != nullptr ? m_triggerPreview->preferredWidth() : 0.0f;
+  const float previewHeight =
+      hasSelectedPreview && m_triggerPreview != nullptr ? m_triggerPreview->preferredHeight() : 0.0f;
+  const bool hasIndicators = !hasSelectedPreview && !m_indicatorColors.empty();
   const float indicatorSize = hasIndicators ? std::round(m_fontSize) : 0.0f;
   const float indicatorBorder = hasIndicators ? 1.5f : 0.0f;
-  const float indicatorInset = hasIndicators ? (indicatorSize + Style::spaceSm) : 0.0f;
+  const float leadingInset =
+      hasSelectedPreview ? (previewWidth + Style::spaceSm) : (hasIndicators ? indicatorSize + Style::spaceSm : 0.0f);
 
   float contentWidth =
-      m_triggerLabel->width() + m_horizontalPadding * 2.0f + m_glyphSize + Style::spaceXs + indicatorInset;
+      m_triggerLabel->width() + m_horizontalPadding * 2.0f + m_glyphSize + Style::spaceXs + leadingInset;
   float dropdownWidth = m_fixedWidth > 0.0f ? m_fixedWidth : std::max(minWidth(), contentWidth);
 
   setSize(dropdownWidth, m_controlHeight);
@@ -231,7 +258,11 @@ void Select::doLayout(Renderer& renderer) {
     }
   }
 
-  const float triggerLabelLeft = m_horizontalPadding + indicatorInset;
+  if (m_triggerPreview != nullptr && hasSelectedPreview) {
+    m_triggerPreview->setPosition(m_horizontalPadding, std::round((m_controlHeight - previewHeight) * 0.5f));
+  }
+
+  const float triggerLabelLeft = m_horizontalPadding + leadingInset;
   const float triggerLabelMax =
       std::max(0.0f, dropdownWidth - (triggerLabelLeft + m_horizontalPadding + m_glyphSize + Style::spaceXs));
   m_triggerLabel->setMaxWidth(triggerLabelMax);
@@ -385,6 +416,7 @@ void Select::openPopupDropdown() {
       .horizontalPadding = m_horizontalPadding,
       .options = m_options,
       .indicatorColors = m_indicatorColors,
+      .optionSwatchPreviews = m_optionSwatchPreviews,
       .selectedIndex = m_selectedIndex,
       .maxVisibleOptions = static_cast<std::size_t>(kMaxVisibleOptions),
   };

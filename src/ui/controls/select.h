@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui/controls/color_swatch_preview.h"
 #include "ui/controls/flex.h"
 #include "ui/palette.h"
 #include "ui/signal.h"
@@ -17,6 +18,7 @@ class InputArea;
 class Glyph;
 class Label;
 class Node;
+class ColorSwatchPreviewStrip;
 class RectNode;
 class Renderer;
 
@@ -35,6 +37,7 @@ public:
   void setHorizontalPadding(float padding);
   void setGlyphSize(float size);
   void setOptionIndicators(std::vector<ColorSpec> colors);
+  void setColorSwatchPreviews(std::vector<ColorSwatchPreview> previews);
   void setOnSelectionChanged(std::function<void(std::size_t, std::string_view)> callback);
 
   [[nodiscard]] std::size_t selectedIndex() const noexcept { return m_selectedIndex; }
@@ -58,6 +61,7 @@ private:
 
   RectNode* m_triggerBackground = nullptr;
   Box* m_triggerIndicator = nullptr;
+  ColorSwatchPreviewStrip* m_triggerPreview = nullptr;
   Label* m_triggerLabel = nullptr;
   Glyph* m_triggerGlyph = nullptr;
   InputArea* m_triggerArea = nullptr;
@@ -75,6 +79,7 @@ private:
   float m_horizontalPadding = Style::spaceMd;
   float m_glyphSize = 14.0f;
   std::vector<ColorSpec> m_indicatorColors;
+  std::vector<ColorSwatchPreview> m_optionSwatchPreviews;
   Signal<>::ScopedConnection m_paletteConn;
 
   std::function<void(std::size_t, std::string_view)> m_onSelectionChanged;

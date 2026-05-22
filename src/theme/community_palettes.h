@@ -12,7 +12,18 @@ class HttpClient;
 namespace noctalia::theme {
 
   struct AvailablePalette {
+    struct PreviewMode {
+      std::string surface;
+      std::vector<std::string> accents;
+    };
+
+    struct Preview {
+      PreviewMode dark;
+      PreviewMode light;
+    };
+
     std::string name;
+    Preview preview = {};
   };
 
   class CommunityPaletteService {
