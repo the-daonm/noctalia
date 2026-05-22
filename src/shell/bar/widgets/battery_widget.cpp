@@ -34,7 +34,7 @@ namespace {
     if (state == BatteryState::FullyCharged || state == BatteryState::PendingCharge) {
       return "battery-plugged";
     }
-    if (state == BatteryState::Unknown) {
+    if (state == BatteryState::Unknown && percentage <= 0.0) {
       return "battery-exclamation";
     }
     if (percentage >= 85.0) {
