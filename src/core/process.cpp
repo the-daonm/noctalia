@@ -438,25 +438,10 @@ namespace {
     return {exitCode, std::move(out), std::move(err), timedOut, outTruncated, errTruncated};
   }
 
-  // Only alphanum, ':', '_' and '.' allowed in systemd unit names
-  std::string escapeSystemdUnitName(const std::string& input) {
-    std::string res;
-    for (const unsigned char c : input) {
-      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ':' || c == '_' ||
-          c == '.') {
-        res += c;
-      } else {
-        res += std::format("\\x{:02x}", c);
-      }
-    }
-    return res;
-  }
-
   // Double-fork + setsid so the exec'd process is not a direct child of the caller (matches
   // launcher app activation). Parent reaps the short-lived intermediate child.
   bool doubleForkExecDetached(const std::vector<std::string>& args, pid_t* reportPid,
-                              const std::string& activationToken, const std::string& workingDir = {},
-                              bool asSystemdService = false, const std::string& appName = {}) {
+                              const std::string& activationToken, const std::string& workingDir = {}) {
     int reportPipe[2] = {-1, -1};
     const bool needPid = reportPid != nullptr;
     if (needPid && ::pipe(reportPipe) != 0) {
@@ -532,49 +517,6 @@ namespace {
       ::close(reportPipe[1]);
     }
 
-#ifdef __linux__
-    if (asSystemdService) {
-      std::vector<std::string> systemdArgs;
-      systemdArgs.push_back("systemd-run");
-      systemdArgs.push_back("--user");
-      systemdArgs.push_back("--slice=app.slice");
-      // Only end the service when all subprocesses have exited. Otherwise, apps using a launcher
-      // script, e.g. vscode, would end prematurely when the script exits, and the actual app process
-      // is still running.
-      systemdArgs.push_back("--property=ExitType=cgroup");
-      if (!appName.empty()) {
-        const std::string uuid = StringUtils::generateUuid();
-        if (!uuid.empty()) {
-          systemdArgs.push_back(std::format("--unit=app-{}@{}.service", escapeSystemdUnitName(appName), uuid));
-        }
-      }
-      if (!workingDir.empty()) {
-        systemdArgs.push_back("--working-directory=" + workingDir);
-      }
-      if (!activationToken.empty()) {
-        ::setenv("XDG_ACTIVATION_TOKEN", activationToken.c_str(), 1);
-        ::setenv("DESKTOP_STARTUP_ID", activationToken.c_str(), 1);
-      }
-
-      // App should inherit our environment.
-      char** s = ::environ;
-      for (; *s; s++) {
-        systemdArgs.push_back("-E");
-        systemdArgs.push_back(*s);
-      }
-
-      systemdArgs.push_back("--");
-      systemdArgs.insert(systemdArgs.end(), args.begin(), args.end());
-      process::RunResult result = runSyncProcess(systemdArgs, std::nullopt);
-      if (result) {
-        ::_exit(0);
-      }
-      // If systemd-run failed, fall back to normal launch. E.g., if systemd-run is not available,
-      // or its version is too old for the switches we used, or the executable is not found.
-      // We'd unnecessarily fail again later in the last case, but seems OK to err on the safe side here.
-    }
-#endif
-
     if (!workingDir.empty() && ::chdir(workingDir.c_str()) != 0) {
       ::_exit(126);
     }
@@ -590,6 +532,100 @@ namespace {
 
     ::execvp(argv[0], argv.data());
     ::_exit(127);
+  }
+
+  // Only alphanum, ':', '_' and '.' allowed in systemd unit names
+  std::string escapeSystemdUnitName(const std::string& input) {
+    std::string res;
+    for (const unsigned char c : input) {
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ':' || c == '_' ||
+          c == '.') {
+        res += c;
+      } else {
+        res += std::format("\\x{:02x}", c);
+      }
+    }
+    return res;
+  }
+
+  void startSystemdService(const std::vector<std::string>& args, const std::string& activationToken,
+                           const std::string& workingDir, const std::string& appName) {
+    const pid_t intermediate = ::fork();
+    if (intermediate < 0) {
+      return;
+    }
+
+    if (intermediate > 0) {
+      // Parent: wait for intermediate to exit (after it forks the grandchild).
+      while (::waitpid(intermediate, nullptr, 0) < 0 && errno == EINTR) {
+      }
+      return;
+    }
+
+    // Intermediate child: fork again and exit, so parent doesn't wait for systemd-run
+
+    const pid_t worker = ::fork();
+    if (worker != 0) {
+      ::_exit(0);
+    }
+
+    // Grandchild
+
+    std::vector<std::string> systemdArgs;
+    systemdArgs.push_back("systemd-run");
+    systemdArgs.push_back("--user");
+    systemdArgs.push_back("--slice=app.slice");
+    // Only end the service when all subprocesses have exited. Otherwise, apps using a launcher
+    // script, e.g. vscode, would end prematurely when the script exits, and the actual app process
+    // is still running.
+    systemdArgs.push_back("--property=ExitType=cgroup");
+
+    // We launch the app as a systemd service instead of a scope so the user can:
+    // 1. Place drop-in files in ~/.config/systemd/user/app-<desktop-id>@.service.d/ to set properties like resource
+    // limits or env vars.
+    // 2. See the app's output and exit code (if it fails) in `systemctl status`.
+    if (!appName.empty()) {
+      const std::string uuid = StringUtils::generateUuid();
+      if (!uuid.empty()) {
+        systemdArgs.push_back(std::format("--unit=app-{}@{}.service", escapeSystemdUnitName(appName), uuid));
+      }
+    }
+    if (!workingDir.empty()) {
+      systemdArgs.push_back("--working-directory=" + workingDir);
+    }
+
+    if (!activationToken.empty()) {
+      ::setenv("XDG_ACTIVATION_TOKEN", activationToken.c_str(), 1);
+      ::setenv("DESKTOP_STARTUP_ID", activationToken.c_str(), 1);
+    }
+
+    // App should inherit our environment.
+    char** s = ::environ;
+    for (; *s; s++) {
+      char c = **s;
+      if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) {
+        continue;
+      }
+      std::string name{*s, std::string_view(*s).find('=')};
+      systemdArgs.push_back("-E");
+      systemdArgs.push_back(name);
+    }
+
+    systemdArgs.push_back("--");
+    systemdArgs.insert(systemdArgs.end(), args.begin(), args.end());
+    process::RunResult result = runSyncProcess(systemdArgs, std::nullopt);
+    if (result) {
+      ::_exit(0);
+    }
+
+    // If systemd-run failed, fall back to normal launch. E.g., if systemd-run is not available,
+    // or its version is too old for the switches we used, or the executable is not found.
+    // We'd unnecessarily fail again later in the last case, but seems OK to err on the safe side here.
+
+    // This would be two more unnecessary forks if systemd-run is missing, but seems acceptable for
+    // the fallback path.
+    (void)doubleForkExecDetached(args, nullptr, activationToken, workingDir);
+    ::_exit(0);
   }
 
 } // namespace
@@ -787,7 +823,7 @@ namespace process {
       return;
     }
     if (systemdAvailable()) {
-      (void)doubleForkExecDetached(args, nullptr, activationToken, workingDir, true, appName);
+      (void)startSystemdService(args, activationToken, workingDir, appName);
       return;
     }
 #endif
