@@ -1263,6 +1263,14 @@
           "label": "Workspace Group Capsule",
           "description": "Draw the background and border around each grouped workspace. Turn off to keep icon grouping and workspace disc labels only."
         },
+        "show_window_title": {
+          "label": "Show Window Title",
+          "description": "Show the window title next to its icon (only on horizontal bars)"
+        },
+        "window_title_max_width": {
+          "label": "Window Title Max Width",
+          "description": "Maximum width in pixels for window titles"
+        },
         "height": {
           "label": "Height",
           "description": "Widget height in pixels"

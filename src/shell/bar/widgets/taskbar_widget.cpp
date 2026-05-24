@@ -132,14 +132,20 @@ TaskbarWidget::TaskbarWidget(
     CompositorPlatform& platform, wl_output* output, bool groupByWorkspace, bool showAllOutputs,
     bool onlyActiveWorkspace, bool showWorkspaceLabel, WorkspaceLabelPlacement workspaceLabelPlacement,
     bool hideEmptyWorkspaces, bool workspaceGroupCapsule, ColorSpec focusedColor, ColorSpec occupiedColor,
-    ColorSpec emptyColor, std::string barPosition, ShellConfig::ShadowConfig shadowConfig
+    ColorSpec emptyColor, bool showWindowTitle, float windowTitleMaxWidth, std::string barPosition,
+    ShellConfig::ShadowConfig shadowConfig
 )
     : m_platform(platform), m_output(output), m_groupByWorkspace(groupByWorkspace), m_showAllOutputs(showAllOutputs),
       m_onlyActiveWorkspace(onlyActiveWorkspace), m_showWorkspaceLabel(showWorkspaceLabel),
       m_workspaceLabelPlacement(workspaceLabelPlacement), m_hideEmptyWorkspaces(hideEmptyWorkspaces),
       m_workspaceGroupCapsule(workspaceGroupCapsule), m_focusedColor(std::move(focusedColor)),
       m_occupiedColor(std::move(occupiedColor)), m_emptyColor(std::move(emptyColor)),
+      m_showWindowTitle(showWindowTitle), m_windowTitleMaxWidth(windowTitleMaxWidth),
       m_barPosition(std::move(barPosition)), m_shadowConfig(std::move(shadowConfig)) {
+  // Window title not implemented for vertical bars or workspace grouping.
+  if (m_barPosition == "left" || m_barPosition == "right" || m_groupByWorkspace) {
+    m_showWindowTitle = false;
+  }
   buildDesktopIconIndex();
 }
 
@@ -255,6 +261,8 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
   const float iconSize = std::round(Style::barGlyphSize * m_contentScale);
   const float tilePadding = Style::spaceXs * 0.35f * m_contentScale;
   const float tileSize = std::round(iconSize + tilePadding * 2.0f);
+  const float tileWidthWithTitle =
+      tileSize + (m_showWindowTitle ? m_windowTitleMaxWidth * m_contentScale + tilePadding : 0.0f);
   const float groupBorderInset = Style::borderWidth * m_contentScale;
   const float groupOutlineInset = m_workspaceGroupCapsule ? groupBorderInset : 0.0f;
   const FontWeight fontWeight = labelFontWeight();
@@ -282,7 +290,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
   };
   auto createTaskTile = [&](const TaskModel& task) {
     auto area = std::make_unique<InputArea>();
-    area->setFrameSize(tileSize, tileSize);
+    area->setFrameSize(tileWidthWithTitle, tileSize);
     area->setAcceptedButtons(InputArea::buttonMask({BTN_LEFT, BTN_RIGHT}));
     area->setOnAxisHandler(workspaceAxisHandler);
 
@@ -351,17 +359,40 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       area->addChild(std::move(glyph));
     }
 
+    if (m_showWindowTitle) {
+      auto label = ui::label({
+          .text = task.title,
+          .fontSize = Style::fontSizeCaption * m_contentScale,
+          .maxWidth = m_windowTitleMaxWidth * m_contentScale,
+      });
+      label->measure(renderer);
+      label->setPosition(std::round(tileSize + tilePadding), 0);
+      area->addChild(std::move(label));
+    }
+
     if (task.active) {
       const float d = std::max(4.0f, std::round(Style::barGlyphSize * 0.32f * m_contentScale));
       const float bottomInset = 0.25f * m_contentScale;
-      auto indicator = ui::box({
-          .fill = colorSpecFromRole(ColorRole::Primary),
-          .radius = resolvedBarCapsuleRadius(d, d),
-          .width = d,
-          .height = d,
-      });
-      indicator->setPosition(std::round((tileSize - d) * 0.5f), std::round(tileSize - d - bottomInset));
-      area->addChild(std::move(indicator));
+      if (m_showWindowTitle) {
+        const float lineThickness = d * 0.5f;
+        auto indicator = ui::box({
+            .fill = colorSpecFromRole(ColorRole::Primary),
+            .radius = lineThickness * 0.5f,
+            .width = tileWidthWithTitle - tilePadding * 2,
+            .height = lineThickness,
+        });
+        indicator->setPosition(tilePadding, std::round(tileSize));
+        area->addChild(std::move(indicator));
+      } else {
+        auto indicator = ui::box({
+            .fill = colorSpecFromRole(ColorRole::Primary),
+            .radius = resolvedBarCapsuleRadius(d, d),
+            .width = d,
+            .height = d,
+        });
+        indicator->setPosition(std::round((tileSize - d) * 0.5f), std::round(tileSize - d - bottomInset));
+        area->addChild(std::move(indicator));
+      }
     }
     return area;
   };

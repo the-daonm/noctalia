@@ -693,6 +693,18 @@ namespace settings {
           break;
         }
       }
+      {
+        auto showWindowTitle = boolSpec("show_window_title", false);
+        showWindowTitle.visibleWhen =
+            WidgetSettingVisibility{WidgetSettingVisibilityCondition{"group_by_workspace", {"false"}}};
+        add(std::move(showWindowTitle));
+      }
+      {
+        auto windowTitleMaxWidth = doubleSpec("window_title_max_width", 100.0, 10.0, 200.0, 1.0);
+        windowTitleMaxWidth.visibleWhen =
+            WidgetSettingVisibility{WidgetSettingVisibilityCondition{"group_by_workspace", {"false"}}};
+        add(std::move(windowTitleMaxWidth));
+      }
     } else if (type == "tray") {
       add(stringListSpec("hidden"));
       add(stringListSpec("pinned"));

@@ -441,10 +441,13 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const ColorSpec emptyColor = wc != nullptr
         ? wc->getColorSpec("empty_color", colorSpecFromRole(ColorRole::Secondary), "widget." + name + ".empty_color")
         : colorSpecFromRole(ColorRole::Secondary);
+    const bool showWindowTitle = wc != nullptr ? wc->getBool("show_window_title", false) : false;
+    const float windowTitleMaxWidth =
+        static_cast<float>(wc != nullptr ? wc->getDouble("window_title_max_width", 100.0) : 100.0);
     auto widget = std::make_unique<TaskbarWidget>(
         m_platform, output, groupByWorkspace, showAllOutputs, onlyActiveWorkspace, showWorkspaceLabel,
         workspaceLabelPlacement, hideEmptyWorkspaces, workspaceGroupCapsule, focusedColor, occupiedColor, emptyColor,
-        barPosition, m_config.shell.shadow
+        showWindowTitle, windowTitleMaxWidth, barPosition, m_config.shell.shadow
     );
     widget->setContentScale(contentScale);
     return widget;
