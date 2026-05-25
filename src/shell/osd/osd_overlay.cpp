@@ -35,6 +35,13 @@ namespace {
     return std::max(0.1f, shell.uiScale * osd.scale);
   }
 
+  [[nodiscard]] float osdBackgroundOpacity(const ConfigService* config) {
+    if (config == nullptr) {
+      return 0.97f;
+    }
+    return std::clamp(config->config().osd.backgroundOpacity, 0.0f, 1.0f);
+  }
+
   [[nodiscard]] bool isVerticalOrientation(const std::string& orientation) { return orientation == "vertical"; }
 
   // Base units at ui_scale=1; passive overlay (no hit targets), between bar and old OSD size.
@@ -422,15 +429,16 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
 
   const float cardX = cardBaseX(w, cw);
   const float cardY = cardBaseYForPosition(m_lastPosition, h, ch);
+  const float backgroundOpacity = osdBackgroundOpacity(m_config);
 
   inst.sceneRoot->addChild(
       ui::box({
           .out = &inst.background,
           .width = cw,
           .height = ch,
-          .configure = [cardX, cardY, cw, ch, s, border](Box& box) {
+          .configure = [cardX, cardY, cw, ch, s, border, backgroundOpacity](Box& box) {
             box.setCardStyle();
-            box.setFill(colorSpecFromRole(ColorRole::Surface));
+            box.setFill(colorSpecFromRole(ColorRole::Surface, backgroundOpacity));
             box.setBorder(colorSpecFromRole(ColorRole::Outline), border);
             box.setRadius(osdCardRadius(cw, ch, s));
             box.setPosition(cardX, cardY);
@@ -506,6 +514,7 @@ void OsdOverlay::updateInstanceContent(Instance& inst) {
   if (m_renderContext == nullptr
       || inst.card == nullptr
       || inst.row == nullptr
+      || inst.background == nullptr
       || inst.glyph == nullptr
       || inst.value == nullptr
       || inst.progress == nullptr) {
@@ -514,6 +523,7 @@ void OsdOverlay::updateInstanceContent(Instance& inst) {
 
   const float s = inst.uiLayoutScale;
   const bool vertical = isVerticalOrientation(m_lastOrientation);
+  inst.background->setFill(colorSpecFromRole(ColorRole::Surface, osdBackgroundOpacity(m_config)));
 
   const auto accentRole = m_content.overLimit ? ColorRole::Error : ColorRole::Primary;
   inst.glyph->setGlyph(m_content.icon);

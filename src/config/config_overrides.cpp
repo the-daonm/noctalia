@@ -493,6 +493,7 @@ namespace {
         && a.osd.position == b.osd.position
         && a.osd.orientation == b.osd.orientation
         && nearlyEqual(a.osd.scale, b.osd.scale)
+        && nearlyEqual(a.osd.backgroundOpacity, b.osd.backgroundOpacity)
         && a.osd.offsetX == b.osd.offsetX
         && a.osd.offsetY == b.osd.offsetY
         && a.osd.lockKeys == b.osd.lockKeys

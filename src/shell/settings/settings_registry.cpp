@@ -1104,6 +1104,11 @@ namespace settings {
         "hud overlay vertical margin"
     ));
     entries.push_back(makeEntry(
+        "popups", "osd", tr("settings.schema.shell.osd-background-opacity.label"),
+        tr("settings.schema.shell.osd-background-opacity.description"), {"osd", "background_opacity"},
+        SliderSetting{cfg.osd.backgroundOpacity, 0.0f, 1.0f, 0.01f, false}, "hud overlay popup opacity"
+    ));
+    entries.push_back(makeEntry(
         "popups", "osd", tr("settings.schema.shell.osd-lock-keys.label"),
         tr("settings.schema.shell.osd-lock-keys.description"), {"osd", "lock_keys"}, ToggleSetting{cfg.osd.lockKeys},
         "hud overlay caps num scroll keyboard"

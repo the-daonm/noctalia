@@ -1711,6 +1711,10 @@
           "label": "Size",
           "description": "Scale OSD popups relative to the shell UI scale (1.0 keeps the default size)"
         },
+        "osd-background-opacity": {
+          "label": "Background Opacity",
+          "description": "Background opacity of OSD popups"
+        },
         "osd-offset-x": {
           "label": "Horizontal Margin",
           "description": "Absolute horizontal margin from the screen edge"

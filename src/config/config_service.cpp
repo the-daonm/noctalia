@@ -1807,6 +1807,8 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
     if (auto v = finiteDouble((*osdTbl)["scale"])) {
       osd.scale = std::clamp(static_cast<float>(*v), 0.5f, 2.5f);
     }
+    if (auto v = finiteDouble((*osdTbl)["background_opacity"]))
+      osd.backgroundOpacity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
     if (auto v = (*osdTbl)["offset_x"].value<int64_t>())
       osd.offsetX = std::max(0, static_cast<int>(*v));
     if (auto v = (*osdTbl)["offset_y"].value<int64_t>())
