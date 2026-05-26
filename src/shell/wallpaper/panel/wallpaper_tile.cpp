@@ -299,15 +299,17 @@ void WallpaperTile::applyVisualState() {
   m_thumb->setTint(active ? rgba(1.0f, 1.0f, 1.0f, 1.0f) : rgba(0.5f, 0.5f, 0.5f, 1.0f));
 
   const float outlineWidth = Style::borderWidth * 3.0f;
-  ColorSpec borderColor = m_current   ? colorSpecFromRole(ColorRole::Primary)
-      : m_selected || m_hoveredVisual ? colorSpecFromRole(ColorRole::Hover)
-                                      : colorSpecFromRole(ColorRole::Outline);
+  ColorSpec borderColor = m_selected ? colorSpecFromRole(ColorRole::Primary)
+      : m_current                    ? colorSpecFromRole(ColorRole::Secondary)
+      : m_hoveredVisual              ? colorSpecFromRole(ColorRole::Hover)
+                                     : colorSpecFromRole(ColorRole::Outline);
+  ColorSpec labelColor =
+      m_current ? colorSpecFromRole(ColorRole::Secondary) : colorSpecFromRole(ColorRole::OnSurfaceVariant);
   ColorSpec frameBg = colorSpecFromRole(ColorRole::SurfaceVariant);
-  m_label->setColor(m_current ? colorSpecFromRole(ColorRole::Primary) : colorSpecFromRole(ColorRole::OnSurfaceVariant));
+  m_label->setColor(labelColor);
 
   m_thumbBox->setFill(frameBg);
   if (m_entry.isDir) {
-    // Folder tiles hide the image node, so draw the state outline on the frame.
     m_thumbBox->setBorder(borderColor, outlineWidth);
     m_thumb->setBorder(colorSpecFromRole(ColorRole::Outline), outlineWidth);
   } else {
