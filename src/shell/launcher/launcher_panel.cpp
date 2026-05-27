@@ -12,6 +12,7 @@
 #include "render/scene/input_area.h"
 #include "render/scene/node.h"
 #include "shell/panel/panel_manager.h"
+#include "system/app_identity.h"
 #include "system/desktop_entry.h"
 #include "ui/builders.h"
 #include "ui/controls/context_menu_popup.h"
@@ -71,6 +72,44 @@ namespace {
     const float subtitleHeight = Style::fontSizeCaption * scale * 1.25f;
     const float textHeight = titleHeight + textGap + subtitleHeight;
     return std::ceil(std::max(kIconSize * scale, textHeight) + paddingY * 2.0f);
+  }
+
+  // Must stay aligned with Dock::refreshPinnedAppsIfNeeded() matching rules.
+  [[nodiscard]] bool dockPinnedIdMatchesEntry(const DesktopEntry& entry, std::string_view pinnedId) {
+    if (pinnedId.empty()) {
+      return false;
+    }
+
+    const std::string pinnedLower = StringUtils::toLower(std::string(pinnedId));
+    const std::string idLower = StringUtils::toLower(entry.id);
+    if (pinnedLower == idLower) {
+      return true;
+    }
+
+    const auto slash = entry.id.rfind('/');
+    const std::string base = (slash == std::string::npos) ? entry.id : entry.id.substr(slash + 1);
+    const auto dot = base.rfind('.');
+    if (dot != std::string::npos) {
+      const std::string legacyStemLower = StringUtils::toLower(base.substr(0, dot));
+      if (pinnedLower == legacyStemLower) {
+        return true;
+      }
+    }
+
+    return app_identity::desktopEntryMatchesLower(entry, pinnedLower);
+  }
+
+  [[nodiscard]] bool isDockPinned(const ConfigService& config, const DesktopEntry& entry) {
+    for (const auto& pinned : config.config().dock.pinned) {
+      if (dockPinnedIdMatchesEntry(entry, pinned)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void removeDockPinForEntry(std::vector<std::string>& pinned, const DesktopEntry& entry) {
+    std::erase_if(pinned, [&](const std::string& pinnedId) { return dockPinnedIdMatchesEntry(entry, pinnedId); });
   }
 
   class LauncherResultRow final : public Node {
@@ -762,7 +801,7 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
       break;
     }
   }
-  if (match == nullptr || match->actions.empty()) {
+  if (match == nullptr) {
     return;
   }
 
@@ -782,18 +821,46 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
   }
 
   std::vector<DesktopAction> actionsCopy = match->actions;
+  const bool dockPinned = m_config != nullptr && isDockPinned(*m_config, *match);
+  const bool canPinToDock = m_config != nullptr && !dockPinned;
+  const bool canUnpinFromDock = m_config != nullptr && dockPinned;
+
+  constexpr std::int32_t kActionOpen = -1;
+  constexpr std::int32_t kActionPinToDock = -2;
+  constexpr std::int32_t kActionUnpinFromDock = -3;
 
   std::vector<ContextMenuControlEntry> entries;
-  entries.reserve(actionsCopy.size() + 1);
+  entries.reserve(actionsCopy.size() + 2);
   entries.push_back(
       ContextMenuControlEntry{
-          .id = -1,
+          .id = kActionOpen,
           .label = i18n::tr("launcher.context-menu.open"),
           .enabled = true,
           .separator = false,
           .hasSubmenu = false,
       }
   );
+  if (canPinToDock) {
+    entries.push_back(
+        ContextMenuControlEntry{
+            .id = kActionPinToDock,
+            .label = i18n::tr("launcher.context-menu.pin-to-dock"),
+            .enabled = true,
+            .separator = false,
+            .hasSubmenu = false,
+        }
+    );
+  } else if (canUnpinFromDock) {
+    entries.push_back(
+        ContextMenuControlEntry{
+            .id = kActionUnpinFromDock,
+            .label = i18n::tr("launcher.context-menu.unpin-from-dock"),
+            .enabled = true,
+            .separator = false,
+            .hasSubmenu = false,
+        }
+    );
+  }
   for (std::int32_t i = 0; i < static_cast<std::int32_t>(actionsCopy.size()); ++i) {
     entries.push_back(
         ContextMenuControlEntry{
@@ -821,13 +888,31 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
     PanelManager::instance().endAttachedPopup(parentSurface);
   });
 
-  m_actionsMenu->setOnActivate([this, base,
-                                actionsCopy = std::move(actionsCopy)](const ContextMenuControlEntry& entry) {
+  m_actionsMenu->setOnActivate([this, base, actionsCopy = std::move(actionsCopy),
+                                entryForPin = *match](const ContextMenuControlEntry& entry) {
     LauncherResult result = base;
     result.desktopActionId.clear();
+    if (entry.id == kActionPinToDock) {
+      if (m_config == nullptr || entryForPin.id.empty() || isDockPinned(*m_config, entryForPin)) {
+        return;
+      }
+      std::vector<std::string> pinned = m_config->config().dock.pinned;
+      pinned.push_back(entryForPin.id);
+      (void)m_config->setOverride({"dock", "pinned"}, std::move(pinned));
+      return;
+    }
+    if (entry.id == kActionUnpinFromDock) {
+      if (m_config == nullptr) {
+        return;
+      }
+      std::vector<std::string> pinned = m_config->config().dock.pinned;
+      removeDockPinForEntry(pinned, entryForPin);
+      (void)m_config->setOverride({"dock", "pinned"}, std::move(pinned));
+      return;
+    }
     if (entry.id >= 0 && entry.id < static_cast<std::int32_t>(actionsCopy.size())) {
       result.desktopActionId = actionsCopy[static_cast<std::size_t>(entry.id)].id;
-    } else if (entry.id != -1) {
+    } else if (entry.id != kActionOpen) {
       return;
     }
 
@@ -844,6 +929,7 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
       PanelManager::instance().closePanel();
       return;
     }
+    return;
   });
 
   const float inset = std::round(std::max(4.0f, Style::spaceXs * scale));

@@ -74,7 +74,9 @@
   "launcher": {
     "search-placeholder": "Search applications...",
     "context-menu": {
-      "open": "Open"
+      "open": "Open",
+      "pin-to-dock": "Pin to dock",
+      "unpin-from-dock": "Unpin from dock"
     },
     "providers": {
       "session": {
