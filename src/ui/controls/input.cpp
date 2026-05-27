@@ -593,6 +593,7 @@ void Input::handleKey(std::uint32_t sym, std::uint32_t utf32, std::uint32_t modi
   const bool ctrl = (modifiers & KeyMod::Ctrl) != 0;
   const bool undoShortcut = ctrl && !shift && (sym == 'z' || sym == 'Z');
   const bool redoShortcut = (ctrl && (sym == 'y' || sym == 'Y')) || (ctrl && shift && (sym == 'z' || sym == 'Z'));
+  const bool clearShortcut = ctrl && !shift && (sym == 'u' || sym == 'U');
 
   // Ignore keys that produce no text and aren't action keys we handle below
   if (utf32 == 0 && !preedit) {
@@ -604,7 +605,8 @@ void Input::handleKey(std::uint32_t sym, std::uint32_t utf32, std::uint32_t modi
         || KeySymbol::isEnd(sym)
         || KeySymbol::isInsert(sym)
         || undoShortcut
-        || redoShortcut;
+        || redoShortcut
+        || clearShortcut;
     if (!navigationOrEdit && !validateMatch) {
       return;
     }
@@ -654,8 +656,15 @@ void Input::handleKey(std::uint32_t sym, std::uint32_t utf32, std::uint32_t modi
     }
     return;
   }
-
-  if (ctrl && (sym == 'a' || sym == 'A')) {
+  if (clearShortcut) {
+    if (!m_value.empty() || hasSelection()) {
+      pushUndoSnapshot(EditCoalesceKind::Discrete);
+      m_value.clear();
+      m_cursorPos = 0;
+      m_selectionAnchor = 0;
+      changed = true;
+    }
+  } else if (ctrl && (sym == 'a' || sym == 'A')) {
     // Select all
     resetUndoCoalescing();
     m_selectionAnchor = 0;
