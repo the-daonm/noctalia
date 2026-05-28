@@ -641,6 +641,8 @@ struct ShellConfig {
   bool clipboardEnabled = true;
   /// Maximum unpinned clipboard history entries retained (pinned entries are exempt).
   int clipboardHistoryMaxEntries = 50;
+  /// When true, clearing clipboard history or deleting unpinned entries from the panel asks for confirmation first.
+  bool clipboardConfirmClearHistory = true;
   /// Disables per-app tracking and Control Center usage UI.
   bool screenTimeEnabled = false;
   bool sharedGlContext = true;

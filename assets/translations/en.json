@@ -1752,6 +1752,10 @@
           "label": "History Size",
           "description": "Maximum unpinned entries kept in clipboard history"
         },
+        "clipboard-confirm-clear-history": {
+          "label": "Confirm Clear History",
+          "description": "Ask before clearing clipboard history or deleting an unpinned entry from the panel. When off, those actions apply immediately; pinned entries still ask before delete."
+        },
         "clipboard-auto-paste": {
           "label": "Clipboard Auto-Paste",
           "description": "Automatically paste clipboard selections"

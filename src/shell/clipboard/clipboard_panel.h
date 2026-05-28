@@ -61,10 +61,13 @@ private:
   void requestClearUnpinnedHistory();
   void clearUnpinnedHistory();
   void clearAllHistory();
+  void performClearUnpinnedHistory();
+  void performClearAllHistory();
   bool handleKeyEvent(std::uint32_t sym, std::uint32_t modifiers);
   void scrollToSelected();
   void requestDeleteSelectedEntry();
   void deleteSelectedEntry();
+  void performDeleteSelectedEntry();
   void resetDeleteConfirmation();
   void resetClearConfirmation();
   void applyFilter();

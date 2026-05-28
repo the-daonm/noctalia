@@ -1336,7 +1336,15 @@ void ClipboardPanel::requestDeleteSelectedEntry() {
   if (historyIndex >= history.size()) {
     return;
   }
-  const std::string storageId = history[historyIndex].storageId;
+  const auto& entry = history[historyIndex];
+  const bool confirmClear = m_config == nullptr || m_config->config().shell.clipboardConfirmClearHistory;
+  if (!confirmClear && !entry.pinned) {
+    resetClearConfirmation();
+    performDeleteSelectedEntry();
+    return;
+  }
+
+  const std::string storageId = entry.storageId;
   if (m_deleteConfirmStorageId == storageId) {
     resetDeleteConfirmation();
   } else {
@@ -1348,7 +1356,7 @@ void ClipboardPanel::requestDeleteSelectedEntry() {
   PanelManager::instance().refresh();
 }
 
-void ClipboardPanel::deleteSelectedEntry() {
+void ClipboardPanel::performDeleteSelectedEntry() {
   if (m_clipboard == nullptr) {
     return;
   }
@@ -1360,10 +1368,8 @@ void ClipboardPanel::deleteSelectedEntry() {
   if (historyIndex >= history.size()) {
     return;
   }
-  if (m_deleteConfirmStorageId != history[historyIndex].storageId) {
-    return;
-  }
   resetDeleteConfirmation();
+  resetClearConfirmation();
   const std::size_t filterPos = m_selectedIndex;
   if (!m_clipboard->removeHistoryEntry(historyIndex)) {
     return;
@@ -1384,6 +1390,24 @@ void ClipboardPanel::deleteSelectedEntry() {
   schedulePreviewPayloadRefresh(false);
   m_pendingScrollToSelected = true;
   PanelManager::instance().refresh();
+}
+
+void ClipboardPanel::deleteSelectedEntry() {
+  if (m_clipboard == nullptr) {
+    return;
+  }
+  const std::size_t historyIndex = selectedHistoryIndex();
+  if (historyIndex == static_cast<std::size_t>(-1)) {
+    return;
+  }
+  const auto& history = m_clipboard->history();
+  if (historyIndex >= history.size()) {
+    return;
+  }
+  if (m_deleteConfirmStorageId != history[historyIndex].storageId) {
+    return;
+  }
+  performDeleteSelectedEntry();
 }
 
 void ClipboardPanel::togglePinSelected() {
@@ -1444,6 +1468,19 @@ void ClipboardPanel::requestClearUnpinnedHistory() {
     return;
   }
 
+  const bool confirmClear = m_config == nullptr || m_config->config().shell.clipboardConfirmClearHistory;
+  if (!confirmClear) {
+    resetClearConfirmation();
+    resetDeleteConfirmation();
+    const bool hasPinned = std::ranges::any_of(history, [](const ClipboardEntry& entry) { return entry.pinned; });
+    if (hasPinned) {
+      performClearUnpinnedHistory();
+    } else {
+      performClearAllHistory();
+    }
+    return;
+  }
+
   if (m_clearConfirm) {
     resetClearConfirmation();
   } else {
@@ -1455,8 +1492,8 @@ void ClipboardPanel::requestClearUnpinnedHistory() {
   PanelManager::instance().refresh();
 }
 
-void ClipboardPanel::clearUnpinnedHistory() {
-  if (m_clipboard == nullptr || !m_clearConfirm) {
+void ClipboardPanel::performClearUnpinnedHistory() {
+  if (m_clipboard == nullptr) {
     return;
   }
   const auto& history = m_clipboard->history();
@@ -1485,8 +1522,8 @@ void ClipboardPanel::clearUnpinnedHistory() {
   PanelManager::instance().refresh();
 }
 
-void ClipboardPanel::clearAllHistory() {
-  if (m_clipboard == nullptr || !m_clearConfirm || m_clipboard->history().empty()) {
+void ClipboardPanel::performClearAllHistory() {
+  if (m_clipboard == nullptr || m_clipboard->history().empty()) {
     return;
   }
   resetClearConfirmation();
@@ -1502,6 +1539,20 @@ void ClipboardPanel::clearAllHistory() {
   schedulePreviewPayloadRefresh(false);
   m_pendingScrollToSelected = false;
   PanelManager::instance().refresh();
+}
+
+void ClipboardPanel::clearUnpinnedHistory() {
+  if (!m_clearConfirm) {
+    return;
+  }
+  performClearUnpinnedHistory();
+}
+
+void ClipboardPanel::clearAllHistory() {
+  if (!m_clearConfirm) {
+    return;
+  }
+  performClearAllHistory();
 }
 
 void ClipboardPanel::resetDeleteConfirmation() { m_deleteConfirmStorageId.clear(); }

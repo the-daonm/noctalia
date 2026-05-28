@@ -1032,6 +1032,16 @@ namespace settings {
     }
     {
       auto e = makeEntry(
+          "shell", "clipboard", tr("settings.schema.shell.clipboard-confirm-clear-history.label"),
+          tr("settings.schema.shell.clipboard-confirm-clear-history.description"),
+          {"shell", "clipboard_confirm_clear_history"}, ToggleSetting{cfg.shell.clipboardConfirmClearHistory},
+          "clipboard history clear confirm pinned"
+      );
+      e.visibleWhen = clipboardOn;
+      entries.push_back(std::move(e));
+    }
+    {
+      auto e = makeEntry(
           "shell", "clipboard", tr("settings.schema.shell.clipboard-auto-paste.label"),
           tr("settings.schema.shell.clipboard-auto-paste.description"), {"shell", "clipboard_auto_paste"},
           enumSelect(kClipboardAutoPasteModes, cfg.shell.clipboardAutoPaste), "clipboard paste"

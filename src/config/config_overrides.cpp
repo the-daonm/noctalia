@@ -397,6 +397,7 @@ namespace {
         && a.launchAppsAsSystemdServices == b.launchAppsAsSystemdServices
         && a.clipboardEnabled == b.clipboardEnabled
         && a.clipboardHistoryMaxEntries == b.clipboardHistoryMaxEntries
+        && a.clipboardConfirmClearHistory == b.clipboardConfirmClearHistory
         && a.screenTimeEnabled == b.screenTimeEnabled
         && a.sharedGlContext == b.sharedGlContext
         && a.clipboardAutoPaste == b.clipboardAutoPaste
