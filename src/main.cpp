@@ -1,9 +1,9 @@
 #include "app/application.h"
+#include "app/single_instance_lock.h"
 #include "config/cli.h"
 #include "core/build_info.h"
 #include "core/log.h"
 #include "ipc/cli.h"
-#include "ipc/ipc_client.h"
 #include "theme/cli.h"
 
 #include <array>
@@ -224,7 +224,10 @@ namespace {
   }
 
   int runShell() {
-    if (IpcClient::isRunning()) {
+    // Claim the single-instance lock before any shell/Wayland init so the answer
+    // is settled before bars or surfaces are created. Held for the process lifetime.
+    SingleInstanceLock instanceLock;
+    if (!instanceLock.tryAcquire()) {
       std::fputs("error: noctalia is already running\n", stderr);
       completeDaemonStartup(1);
       return 1;

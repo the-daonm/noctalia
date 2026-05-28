@@ -355,6 +355,7 @@ _protocol_headers += _wlr_ls_h
 _noctalia_sources = files(
   'src/app/application.cpp',
   'src/app/main_loop.cpp',
+  'src/app/single_instance_lock.cpp',
   'src/auth/pam_authenticator.cpp',
   'src/config/config_export.cpp',
   'src/config/config_overrides.cpp',
