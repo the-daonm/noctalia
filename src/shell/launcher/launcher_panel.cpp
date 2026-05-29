@@ -686,7 +686,7 @@ void LauncherPanel::rebuildCategoryFilter(const std::vector<LauncherCategory>& c
     return;
   }
   m_categoryFilter->clearOptions();
-  if (categories.empty()) {
+  if (categories.empty() && !m_hasRecentlyUsed) {
     setCategoryFilterVisible(false);
     return;
   }
