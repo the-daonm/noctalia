@@ -1,5 +1,6 @@
 #include "shell/lockscreen/lock_screen.h"
 
+#include "capture/screencopy_util.h"
 #include "config/config_service.h"
 #include "core/deferred_call.h"
 #include "core/keybind_matcher.h"
@@ -70,6 +71,11 @@ bool LockScreen::lock() {
     return false;
   }
 
+  m_desktopCaptures.clear();
+  if (shouldUseBlurredDesktop()) {
+    captureDesktopSnapshots();
+  }
+
   m_lock = ext_session_lock_manager_v1_lock(m_wayland->sessionLockManager());
   if (m_lock == nullptr) {
     kLog.warn("failed to create session lock object");
@@ -127,6 +133,7 @@ void LockScreen::unlock() {
   m_status.clear();
   m_statusIsError = false;
   m_wayland->stopKeyRepeat();
+  m_desktopCaptures.clear();
   clearInstances();
   m_pointerSurface = nullptr;
   wl_display_flush(m_wayland->display());
@@ -174,12 +181,23 @@ void LockScreen::onThemeChanged() {
   }
 }
 
+void LockScreen::onConfigChanged() {
+  if (!isActive()) {
+    return;
+  }
+  for (auto& instance : m_instances) {
+    if (instance.surface != nullptr) {
+      applyLockscreenStyle(*instance.surface);
+    }
+  }
+}
+
 void LockScreen::onWallpaperChanged() {
   if (!isActive() || m_configService == nullptr) {
     return;
   }
   for (auto& instance : m_instances) {
-    if (instance.surface == nullptr) {
+    if (instance.surface == nullptr || instance.surface->hasDesktopCapture()) {
       continue;
     }
     const auto* output = m_wayland != nullptr ? m_wayland->findOutputByWl(instance.output) : nullptr;
@@ -325,6 +343,7 @@ void LockScreen::handleFinished(void* data, ext_session_lock_v1* /*lock*/) {
   clearSensitiveString(self->m_password);
   self->m_status.clear();
   self->m_statusIsError = false;
+  self->m_desktopCaptures.clear();
   self->clearInstances();
   self->m_pointerSurface = nullptr;
 }
@@ -356,15 +375,65 @@ void LockScreen::syncInstances() {
   }
 }
 
+bool LockScreen::shouldUseBlurredDesktop() const {
+  return m_configService != nullptr
+      && m_configService->config().lockscreen.blurredDesktop
+      && m_wayland != nullptr
+      && m_wayland->hasScreencopy();
+}
+
+void LockScreen::captureDesktopSnapshots() {
+  if (m_wayland == nullptr) {
+    return;
+  }
+
+  ScreencopyCapture capture(*m_wayland);
+  if (!capture.available()) {
+    kLog.warn("blurred lockscreen requested but screencopy is unavailable");
+    return;
+  }
+
+  for (const auto& output : m_wayland->outputs()) {
+    if (output.output == nullptr) {
+      continue;
+    }
+
+    ScreencopyImage image;
+    std::string error;
+    if (!screencopy::captureOutputBlocking(capture, *m_wayland, output.output, image, error)) {
+      kLog.warn("lockscreen desktop capture failed for {}: {}", output.connectorName, error);
+      continue;
+    }
+    if (!screencopy::orientCaptureNative(image, *m_wayland, output.output)) {
+      kLog.warn("lockscreen desktop capture orientation failed for {}", output.connectorName);
+      continue;
+    }
+    m_desktopCaptures[output.output] = std::move(image);
+  }
+}
+
+void LockScreen::applyLockscreenStyle(LockSurface& surface) const {
+  if (m_configService == nullptr) {
+    return;
+  }
+  const auto& lockscreen = m_configService->config().lockscreen;
+  surface.setBlurredDesktopStyle(lockscreen.blurIntensity, lockscreen.tintIntensity);
+}
+
 void LockScreen::createInstance(const WaylandOutput& output) {
   auto surface = std::make_unique<LockSurface>(*m_wayland, m_configService);
   surface->setRenderContext(m_renderContext);
   surface->setTextureCache(m_textureCache);
   surface->setLockedState(m_locked);
+  applyLockscreenStyle(*surface);
   if (m_configService != nullptr) {
     surface->setWallpaperPath(m_configService->getWallpaperPath(output.connectorName));
     surface->setWallpaperFillMode(m_configService->config().wallpaper.fillMode);
     surface->setWallpaperFillColor(resolveWallpaperFillColor(m_configService->config().wallpaper));
+  }
+  if (auto captureIt = m_desktopCaptures.find(output.output); captureIt != m_desktopCaptures.end()) {
+    surface->setDesktopCapture(std::move(captureIt->second));
+    m_desktopCaptures.erase(captureIt);
   }
   surface->setOnLogin([this]() { tryAuthenticate(); });
   surface->setOnPasswordChanged([this](const std::string& value) { handlePasswordEdited(value); });

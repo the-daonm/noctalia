@@ -1,6 +1,8 @@
 #pragma once
 
+#include "capture/screencopy_capture.h"
 #include "config/config_service.h"
+#include "render/core/blur_cache.h"
 #include "render/core/color.h"
 #include "render/core/texture_manager.h"
 #include "render/scene/input_dispatcher.h"
@@ -10,6 +12,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 struct ext_session_lock_surface_v1;
@@ -39,6 +42,8 @@ public:
   void setWallpaperPath(std::string wallpaperPath);
   void setWallpaperFillMode(WallpaperFillMode fillMode);
   void setWallpaperFillColor(Color fillColor);
+  void setDesktopCapture(std::optional<ScreencopyImage> capture);
+  void setBlurredDesktopStyle(float blurIntensity, float tintIntensity);
   void setOnLogin(std::function<void()> onLogin);
   void setOnPasswordChanged(std::function<void(const std::string&)> onPasswordChanged);
   void selectAllPassword();
@@ -48,6 +53,7 @@ public:
   void onPointerEvent(const PointerEvent& event);
   void onKeyboardEvent(const KeyboardEvent& event);
   [[nodiscard]] wl_output* output() const noexcept { return m_output; }
+  [[nodiscard]] bool hasDesktopCapture() const noexcept;
 
   static void handleConfigure(
       void* data, ext_session_lock_surface_v1* lockSurface, std::uint32_t serial, std::uint32_t width,
@@ -57,6 +63,8 @@ public:
 private:
   void prepareFrame(bool needsUpdate, bool needsLayout);
   void applyWallpaperTexture();
+  void applyBlurredDesktopTexture();
+  void releaseCaptureTextures();
   void updateClockText();
   void layoutScene(std::uint32_t width, std::uint32_t height);
   void updateCopy();
@@ -66,6 +74,7 @@ private:
   ConfigService* m_config = nullptr;
   Node m_root;
   WallpaperNode* m_wallpaper = nullptr;
+  Box* m_tintOverlay = nullptr;
   Box* m_backdrop = nullptr;
   Label* m_clockShadow = nullptr;
   Label* m_clock = nullptr;
@@ -74,6 +83,13 @@ private:
   Button* m_loginButton = nullptr;
   SharedTextureCache* m_textureCache = nullptr;
   TextureHandle m_wallpaperTexture{};
+  TextureHandle m_captureSourceTexture{};
+  TextureHandle m_blurredDesktopTexture{};
+  BlurCache m_blurCache;
+  std::optional<ScreencopyImage> m_desktopCapture;
+  float m_blurIntensity = 0.5f;
+  float m_tintIntensity = 0.3f;
+  bool m_captureDirty = true;
   std::string m_wallpaperPath;
   WallpaperFillMode m_wallpaperFillMode = WallpaperFillMode::Crop;
   Color m_wallpaperFillColor = rgba(0.0f, 0.0f, 0.0f, 0.0f);

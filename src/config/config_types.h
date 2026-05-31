@@ -378,6 +378,14 @@ struct BackdropConfig {
   bool operator==(const BackdropConfig&) const = default;
 };
 
+struct LockscreenConfig {
+  bool blurredDesktop = false;
+  float blurIntensity = 0.5f;
+  float tintIntensity = 0.3f;
+
+  bool operator==(const LockscreenConfig&) const = default;
+};
+
 struct DockConfig {
   bool enabled = false;            // opt-in; dock is hidden by default
   std::string position = "bottom"; // top | bottom | left | right
@@ -1031,6 +1039,7 @@ struct Config {
   std::unordered_map<std::string, WidgetConfig> widgets;
   WallpaperConfig wallpaper;
   BackdropConfig backdrop;
+  LockscreenConfig lockscreen;
   DockConfig dock;
   DesktopWidgetsConfig desktopWidgets;
   ShellConfig shell;

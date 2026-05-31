@@ -296,6 +296,7 @@ void SettingsWindow::applyPendingContentScrollTarget(float margin) {
 settings::RegistryEnvironment SettingsWindow::buildRegistryEnvironment() const {
   settings::RegistryEnvironment env;
   env.niriBackdropSupported = (m_wayland != nullptr && compositors::isNiri());
+  env.screencopySupported = m_wayland != nullptr && m_wayland->hasScreencopy();
   env.niriOverviewTypeToLaunchSupported = (m_wayland != nullptr && compositors::isNiri());
   env.ddcutilAvailable = (m_dependencies != nullptr && m_dependencies->hasDdcutil());
   env.gammaControlAvailable = (m_wayland != nullptr && m_wayland->hasGammaControl());

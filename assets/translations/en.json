@@ -955,6 +955,7 @@
         "dock": "Dock",
         "hooks": "Hooks",
         "idle": "Idle",
+        "lockscreen": "Lock Screen",
         "niri": "Niri",
         "panels": "Panels",
         "notifications": "Notifications",
@@ -970,6 +971,7 @@
         "audio": "Audio",
         "automation": "Automation",
         "backdrop": "Backdrop",
+        "background": "Background",
         "behavior": "Behavior",
         "brightness": "Brightness",
         "built-in": "Built-in",
@@ -2118,6 +2120,20 @@
         },
         "enabled": {
           "description": "Enable the backdrop"
+        }
+      },
+      "lockscreen": {
+        "blurred-desktop": {
+          "label": "Blurred Desktop",
+          "description": "Capture the desktop before locking and show it blurred behind the lock screen"
+        },
+        "blur-intensity": {
+          "label": "Blur Intensity",
+          "description": "Blur intensity of the captured desktop background"
+        },
+        "tint-intensity": {
+          "label": "Tint Intensity",
+          "description": "Surface-color tint over the blurred desktop background"
         }
       },
       "desktop": {

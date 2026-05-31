@@ -279,6 +279,7 @@ namespace {
         && desktopWidgetsConfigEqual(a.desktopWidgets, b.desktopWidgets)
         && a.wallpaper == b.wallpaper
         && a.backdrop == b.backdrop
+        && a.lockscreen == b.lockscreen
         && a.dock == b.dock
         && a.shell == b.shell
         && a.osd == b.osd

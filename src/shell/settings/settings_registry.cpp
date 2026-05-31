@@ -287,6 +287,8 @@ namespace settings {
       return "layout-bottombar";
     if (section == "idle")
       return "coffee";
+    if (section == "lockscreen")
+      return "lock";
     if (section == "niri")
       return "niri";
     if (section == "wallpaper")
@@ -1646,6 +1648,33 @@ namespace settings {
         IdleBehaviorsSetting{.items = cfg.idle.behaviors},
         "idle behavior timeout command resume screen lock dpms suspend lock_and_suspend caffeine"
     ));
+
+    if (env.screencopySupported) {
+      const SettingVisibility blurredDesktopOn{{"lockscreen", "blurred_desktop"}, {"true"}};
+      entries.push_back(makeEntry(
+          "lockscreen", "background", tr("settings.schema.lockscreen.blurred-desktop.label"),
+          tr("settings.schema.lockscreen.blurred-desktop.description"), {"lockscreen", "blurred_desktop"},
+          ToggleSetting{cfg.lockscreen.blurredDesktop}, "lock screen screencopy blur desktop wallpaper"
+      ));
+      {
+        auto entry = makeEntry(
+            "lockscreen", "background", tr("settings.schema.lockscreen.blur-intensity.label"),
+            tr("settings.schema.lockscreen.blur-intensity.description"), {"lockscreen", "blur_intensity"},
+            SliderSetting{cfg.lockscreen.blurIntensity, 0.0f, 1.0f, 0.01f, false}, "lock screen blur"
+        );
+        entry.visibleWhen = blurredDesktopOn;
+        entries.push_back(std::move(entry));
+      }
+      {
+        auto entry = makeEntry(
+            "lockscreen", "background", tr("settings.schema.lockscreen.tint-intensity.label"),
+            tr("settings.schema.lockscreen.tint-intensity.description"), {"lockscreen", "tint_intensity"},
+            SliderSetting{cfg.lockscreen.tintIntensity, 0.0f, 1.0f, 0.01f, false}, "lock screen tint"
+        );
+        entry.visibleWhen = blurredDesktopOn;
+        entries.push_back(std::move(entry));
+      }
+    }
 
     // Hooks
     auto hookGroup = [](HookKind kind) -> std::string {

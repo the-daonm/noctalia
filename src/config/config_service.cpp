@@ -1941,6 +1941,17 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
       ov.tintIntensity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
   }
 
+  // Parse [lockscreen]
+  if (auto* lockTbl = tbl["lockscreen"].as_table()) {
+    auto& lock = config.lockscreen;
+    if (auto v = (*lockTbl)["blurred_desktop"].value<bool>())
+      lock.blurredDesktop = *v;
+    if (auto v = finiteDouble((*lockTbl)["blur_intensity"]))
+      lock.blurIntensity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
+    if (auto v = finiteDouble((*lockTbl)["tint_intensity"]))
+      lock.tintIntensity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
+  }
+
   // Parse [osd]
   if (auto* osdTbl = tbl["osd"].as_table()) {
     auto& osd = config.osd;

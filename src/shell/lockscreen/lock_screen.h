@@ -1,12 +1,17 @@
 #pragma once
 
 #include "auth/pam_authenticator.h"
+#include "capture/screencopy_capture.h"
 
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
+
+struct ScreencopyImage;
 
 struct KeyboardEvent;
 struct PointerEvent;
@@ -38,6 +43,7 @@ public:
   void onFontChanged();
   void onThemeChanged();
   void onWallpaperChanged();
+  void onConfigChanged();
   void requestLayout();
   void onPointerEvent(const PointerEvent& event);
   void onKeyboardEvent(const KeyboardEvent& event);
@@ -59,6 +65,9 @@ private:
   };
 
   void syncInstances();
+  void captureDesktopSnapshots();
+  [[nodiscard]] bool shouldUseBlurredDesktop() const;
+  void applyLockscreenStyle(LockSurface& surface) const;
   void createInstance(const WaylandOutput& output);
   void resetLockState();
   void clearInstances();
@@ -73,6 +82,7 @@ private:
   SharedTextureCache* m_textureCache = nullptr;
   ext_session_lock_v1* m_lock = nullptr;
   std::vector<Instance> m_instances;
+  std::unordered_map<wl_output*, ScreencopyImage> m_desktopCaptures;
   PamAuthenticator m_authenticator;
   std::string m_user;
   std::string m_password;

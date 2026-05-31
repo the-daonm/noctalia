@@ -133,6 +133,13 @@ offset_y = 8                        # absolute vertical margin from the screen e
 lock_keys = true                    # show Caps/Num/Scroll Lock OSD popups; disable to stop polling when no widget uses them
 keyboard_layout = true            # show an OSD popup when the input keyboard layout changes
 
+# ── Lock Screen ───────────────────────────────────────────────────────────────
+
+[lockscreen]
+blurred_desktop         = false       # capture desktop via screencopy before locking (requires wlr-screencopy)
+blur_intensity          = 0.5         # 0.0 = no blur, 1.0 = maximum
+tint_intensity          = 0.3         # 0.0 = no tint, 1.0 = opaque
+
 # ── System Monitor ────────────────────────────────────────────────────────────
 
 [system.monitor]

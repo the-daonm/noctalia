@@ -685,6 +685,12 @@ namespace config_export {
     backdrop.insert_or_assign("tint_intensity", static_cast<double>(config.backdrop.tintIntensity));
     root.insert_or_assign("backdrop", std::move(backdrop));
 
+    toml::table lockscreen;
+    lockscreen.insert_or_assign("blurred_desktop", config.lockscreen.blurredDesktop);
+    lockscreen.insert_or_assign("blur_intensity", static_cast<double>(config.lockscreen.blurIntensity));
+    lockscreen.insert_or_assign("tint_intensity", static_cast<double>(config.lockscreen.tintIntensity));
+    root.insert_or_assign("lockscreen", std::move(lockscreen));
+
     root.insert_or_assign("notification", notificationTable(config.notification));
 
     toml::table osd;

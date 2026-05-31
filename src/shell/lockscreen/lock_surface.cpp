@@ -1,8 +1,10 @@
 #include "shell/lockscreen/lock_surface.h"
 
+#include "capture/screencopy_capture.h"
 #include "core/ui_phase.h"
 #include "ext-session-lock-v1-client-protocol.h"
 #include "i18n/i18n.h"
+#include "render/core/blur_cache.h"
 #include "render/core/render_styles.h"
 #include "render/core/shared_texture_cache.h"
 #include "render/render_context.h"
@@ -44,6 +46,14 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
   auto wallpaper = std::make_unique<WallpaperNode>();
   m_wallpaper = static_cast<WallpaperNode*>(m_root.addChild(std::move(wallpaper)));
   m_wallpaper->setZIndex(0);
+
+  m_root.addChild(
+      ui::box({
+          .out = &m_tintOverlay,
+          .visible = false,
+          .configure = [](Box& box) { box.setZIndex(1); },
+      })
+  );
 
   m_root.addChild(
       ui::box({
@@ -118,6 +128,7 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
 }
 
 LockSurface::~LockSurface() {
+  releaseCaptureTextures();
   if (m_wallpaperTexture.id != 0 && m_textureCache != nullptr) {
     if (m_textureCache->shared()) {
       m_textureCache->release(m_wallpaperTexture, m_wallpaperPath);
@@ -236,6 +247,28 @@ void LockSurface::setWallpaperFillColor(Color fillColor) {
   requestRedraw();
 }
 
+void LockSurface::setDesktopCapture(std::optional<ScreencopyImage> capture) {
+  m_desktopCapture = std::move(capture);
+  m_captureDirty = true;
+  releaseCaptureTextures();
+  requestLayout();
+}
+
+bool LockSurface::hasDesktopCapture() const noexcept {
+  return m_desktopCapture.has_value() && !m_desktopCapture->rgba.empty();
+}
+
+void LockSurface::setBlurredDesktopStyle(float blurIntensity, float tintIntensity) {
+  if (m_blurIntensity == blurIntensity && m_tintIntensity == tintIntensity) {
+    return;
+  }
+  m_blurIntensity = blurIntensity;
+  m_tintIntensity = tintIntensity;
+  m_captureDirty = true;
+  m_blurCache.invalidate();
+  requestLayout();
+}
+
 void LockSurface::setOnLogin(std::function<void()> onLogin) { m_onLogin = std::move(onLogin); }
 
 void LockSurface::setOnPasswordChanged(std::function<void(const std::string&)> onPasswordChanged) {
@@ -299,7 +332,10 @@ void LockSurface::onSecondTick() {
   }
 }
 
-void LockSurface::onThemeChanged() { requestLayout(); }
+void LockSurface::onThemeChanged() {
+  m_captureDirty = true;
+  requestLayout();
+}
 
 void LockSurface::onKeyboardEvent(const KeyboardEvent& event) {
   m_inputDispatcher.keyEvent(event.sym, event.utf32, event.modifiers, event.pressed, event.preedit);
@@ -371,6 +407,21 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
       }
   );
 
+  if (m_tintOverlay != nullptr) {
+    m_tintOverlay->setPosition(0.0f, 0.0f);
+    m_tintOverlay->setSize(sw, sh);
+    const bool showTint = m_desktopCapture.has_value() && m_tintIntensity > 0.0f;
+    m_tintOverlay->setVisible(showTint);
+    if (showTint) {
+      m_tintOverlay->setStyle(
+          RoundedRectStyle{
+              .fill = colorForRole(ColorRole::Surface, m_tintIntensity),
+              .fillMode = FillMode::Solid,
+          }
+      );
+    }
+  }
+
   constexpr float kClockFontSize = 64.0f;
   m_clock->setFontSize(kClockFontSize);
   m_clock->setFontWeight(FontWeight::Bold);
@@ -423,6 +474,13 @@ void LockSurface::updateCopy() {
 }
 
 void LockSurface::applyWallpaperTexture() {
+  if (m_desktopCapture.has_value() && !m_desktopCapture->rgba.empty()) {
+    applyBlurredDesktopTexture();
+    if (m_blurredDesktopTexture.id != 0) {
+      return;
+    }
+  }
+
   if (!m_wallpaperDirty) {
     return;
   }
@@ -455,6 +513,82 @@ void LockSurface::applyWallpaperTexture() {
     m_wallpaper->setTextures({}, {}, 0.0f, 0.0f, 0.0f, 0.0f);
   }
 
+  m_wallpaperDirty = false;
+}
+
+void LockSurface::releaseCaptureTextures() {
+  if (renderContext() == nullptr) {
+    m_captureSourceTexture = {};
+    m_blurredDesktopTexture = {};
+    m_blurCache.destroy();
+    return;
+  }
+
+  auto& tm = renderContext()->textureManager();
+  renderContext()->backend().makeCurrentNoSurface();
+  if (m_captureSourceTexture.id != 0) {
+    tm.unload(m_captureSourceTexture);
+    m_captureSourceTexture = {};
+  }
+  if (m_blurredDesktopTexture.id != 0) {
+    tm.unload(m_blurredDesktopTexture);
+    m_blurredDesktopTexture = {};
+  }
+  m_blurCache.destroy();
+}
+
+void LockSurface::applyBlurredDesktopTexture() {
+  if (!m_captureDirty || !m_desktopCapture.has_value() || m_desktopCapture->rgba.empty()) {
+    return;
+  }
+
+  auto* renderer = renderContext();
+  if (renderer == nullptr) {
+    return;
+  }
+
+  const ScreencopyImage& capture = *m_desktopCapture;
+  const int texW = capture.width;
+  const int texH = capture.height;
+  if (texW <= 0 || texH <= 0) {
+    return;
+  }
+
+  renderer->makeCurrent(renderTarget());
+  auto& tm = renderer->textureManager();
+  if (m_captureSourceTexture.id != 0) {
+    tm.unload(m_captureSourceTexture);
+    m_captureSourceTexture = {};
+  }
+  if (m_blurredDesktopTexture.id != 0) {
+    tm.unload(m_blurredDesktopTexture);
+    m_blurredDesktopTexture = {};
+  }
+
+  m_captureSourceTexture = tm.loadFromRgba(capture.rgba.data(), texW, texH, false);
+  if (m_captureSourceTexture.id == 0) {
+    return;
+  }
+
+  static constexpr int kBlurRounds = 3;
+  const float blurRadius = m_blurIntensity * 40.0f;
+  m_blurredDesktopTexture = m_blurCache.get(
+      renderer->backend(), m_captureSourceTexture, static_cast<std::uint32_t>(texW), static_cast<std::uint32_t>(texH),
+      blurRadius, kBlurRounds
+  );
+  if (m_blurredDesktopTexture.id == 0) {
+    return;
+  }
+
+  m_wallpaper->setTextures(
+      m_blurredDesktopTexture.id, {}, static_cast<float>(m_blurredDesktopTexture.width),
+      static_cast<float>(m_blurredDesktopTexture.height), 0.0f, 0.0f
+  );
+  m_wallpaper->setTransition(WallpaperTransition::Fade, 0.0f, TransitionParams{});
+  m_wallpaper->setFillMode(m_wallpaperFillMode);
+  m_wallpaper->setFillColor(rgba(0.0f, 0.0f, 0.0f, 0.0f));
+  m_backdrop->setVisible(false);
+  m_captureDirty = false;
   m_wallpaperDirty = false;
 }
 

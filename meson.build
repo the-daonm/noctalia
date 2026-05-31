@@ -604,6 +604,7 @@ _noctalia_sources = files(
   'src/system/internal_app_metadata.cpp',
   'src/system/gamma_service.cpp',
   'src/capture/screencopy_capture.cpp',
+  'src/capture/screencopy_util.cpp',
   'src/capture/screenshot_service.cpp',
   'src/capture/screenshot_region_overlay.cpp',
   'src/shell/bar/widgets/screenshot_widget.cpp',

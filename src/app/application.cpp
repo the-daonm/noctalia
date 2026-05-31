@@ -1016,6 +1016,7 @@ void Application::initUi() {
     });
   });
   m_lockScreen.initialize(m_wayland, &m_renderContext, &m_configService, &m_sharedTextureCache);
+  m_configService.addReloadCallback([this]() { m_lockScreen.onConfigChanged(); });
   m_lockScreen.setSessionHooks(
       [this]() { m_hookManager.fire(HookKind::SessionLocked); },
       [this]() { m_hookManager.fire(HookKind::SessionUnlocked); }
