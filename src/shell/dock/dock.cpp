@@ -12,6 +12,7 @@
 #include "shell/dock/dock_geometry.h"
 #include "shell/dock/dock_instance.h"
 #include "shell/dock/dock_items.h"
+#include "shell/dock/dock_model.h"
 #include "shell/panel/panel_manager.h"
 #include "shell/surface_shadow.h"
 #include "shell/tooltip/tooltip_manager.h"
@@ -97,6 +98,36 @@ namespace {
     }
 
     return signature;
+  }
+
+  zwlr_foreign_toplevel_handle_v1* nextActivatableWindowHandle(
+      const std::vector<ToplevelInfo>& windows, zwlr_foreign_toplevel_handle_v1* activeHandle,
+      zwlr_foreign_toplevel_handle_v1* preferredHandle
+  ) {
+    for (std::size_t i = 0; i < windows.size(); ++i) {
+      if (windows[i].handle != nullptr && windows[i].handle == activeHandle) {
+        for (std::size_t offset = 1; offset <= windows.size(); ++offset) {
+          auto* nextHandle = windows[(i + offset) % windows.size()].handle;
+          if (nextHandle != nullptr) {
+            return nextHandle;
+          }
+        }
+        return nullptr;
+      }
+    }
+
+    for (const auto& window : windows) {
+      if (window.handle != nullptr && window.handle == preferredHandle) {
+        return window.handle;
+      }
+    }
+
+    for (const auto& window : windows) {
+      if (window.handle != nullptr) {
+        return window.handle;
+      }
+    }
+    return nullptr;
   }
 
 } // namespace
@@ -475,7 +506,7 @@ void Dock::createInstance(const WaylandOutput& output) {
   instance->outputName = output.name;
   instance->output = output.output;
   instance->scale = output.scale;
-  instance->activeAppIdLower = shell::dock::currentActiveEntryIdLower(*m_platform);
+  instance->snapshot.output = output.output;
 
   const auto& shadowConfig = m_config->config().shell.shadow;
   LayerSurfaceConfig lsCfg = shell::dock::makeLayerSurfaceConfig(
@@ -520,16 +551,21 @@ bool Dock::syncInstanceModel(shell::dock::DockInstance& instance) {
     return false;
   }
 
-  return shell::dock::syncInstanceModel(
-      instance,
-      {
-          .platform = *m_platform,
-          .config = *m_config,
-          .lastActiveHandleByAppIdLower = m_lastActiveHandleByAppIdLower,
-          .pinnedEntries = m_pinnedEntries,
-          .modelSerial = m_modelSerial,
-      }
-  );
+  auto next = shell::dock::buildDockSnapshot({
+      .platform = *m_platform,
+      .config = m_config->config().dock,
+      .output = instance.output,
+      .lastActiveHandleByAppIdLower = m_lastActiveHandleByAppIdLower,
+      .pinnedEntries = m_pinnedEntries,
+      .sourceSerial = m_modelSerial,
+  });
+
+  const bool needRebuild = instance.snapshot.sourceSerial != next.sourceSerial
+      || instance.snapshot.filterOutput != next.filterOutput
+      || !shell::dock::sameDockItemSet(instance.snapshot, next);
+  instance.snapshot = std::move(next);
+
+  return needRebuild;
 }
 
 // ── Private: item population ──────────────────────────────────────────────────
@@ -545,26 +581,23 @@ void Dock::rebuildItems(shell::dock::DockInstance& instance) {
       {
           .model =
               {
-                  .platform = *m_platform,
                   .config = *m_config,
-                  .lastActiveHandleByAppIdLower = m_lastActiveHandleByAppIdLower,
-                  .pinnedEntries = m_pinnedEntries,
-                  .modelSerial = m_modelSerial,
               },
           .renderContext = *m_renderContext,
           .iconResolver = m_iconResolver,
       },
+      instance.snapshot,
       {
-          .pruneCachedToplevelHandles = [this]() { pruneCachedToplevelHandles(); },
-          .launchOptions = [this](
-                               wl_surface* activationSurface
-                           ) { return dockLaunchOptions(*m_platform, *m_config, activationSurface); },
+          .activateOrLaunch = [this](
+                                  shell::dock::DockInstance& inst, const shell::dock::DockItemAction& action
+                              ) { activateOrLaunchItem(inst, action); },
           .toggleLauncher =
               [](shell::dock::DockInstance& inst) {
                 PanelManager::instance().togglePanel("launcher", PanelOpenRequest{.output = inst.output});
               },
-          .openItemMenu =
-              [this](shell::dock::DockInstance& inst, shell::dock::DockItemView& item) { openItemMenu(inst, item); },
+          .openItemMenu = [this](
+                              shell::dock::DockInstance& inst, const shell::dock::DockItemAction& action
+                          ) { openItemMenu(inst, action); },
       }
   );
 }
@@ -579,15 +612,12 @@ void Dock::updateVisuals(shell::dock::DockInstance& instance) {
       {
           .model =
               {
-                  .platform = *m_platform,
                   .config = *m_config,
-                  .lastActiveHandleByAppIdLower = m_lastActiveHandleByAppIdLower,
-                  .pinnedEntries = m_pinnedEntries,
-                  .modelSerial = m_modelSerial,
               },
           .renderContext = *m_renderContext,
           .iconResolver = m_iconResolver,
-      }
+      },
+      instance.snapshot
   );
 }
 
@@ -608,7 +638,42 @@ void Dock::closeItemMenu() {
   }
 }
 
-void Dock::openItemMenu(shell::dock::DockInstance& instance, shell::dock::DockItemView& item) {
+void Dock::activateOrLaunchItem(shell::dock::DockInstance& instance, const shell::dock::DockItemAction& action) {
+  assertDockInitialized(m_platform, m_config, m_renderContext);
+
+  pruneCachedToplevelHandles();
+
+  auto windows = m_platform->windowsForApp(
+      action.idLower, action.startupWmClassLower,
+      shell::dock::dockFilterOutput(m_config->config().dock, instance.output)
+  );
+
+  if (windows.empty()) {
+    wl_surface* const activationSurface = instance.surface != nullptr ? instance.surface->wlSurface() : nullptr;
+    (void)desktop_entry_launch::launchEntry(action.entry, dockLaunchOptions(*m_platform, *m_config, activationSurface));
+    return;
+  }
+
+  if (windows.size() == 1) {
+    m_platform->activateToplevel(windows[0].handle);
+    return;
+  }
+
+  zwlr_foreign_toplevel_handle_v1* activeHandle = nullptr;
+  if (const auto active = m_platform->activeToplevel(); active.has_value()) {
+    activeHandle = active->handle;
+  }
+
+  auto* preferredHandle = [&]() -> zwlr_foreign_toplevel_handle_v1* {
+    const auto it = m_lastActiveHandleByAppIdLower.find(action.idLower);
+    return it != m_lastActiveHandleByAppIdLower.end() ? it->second : nullptr;
+  }();
+  if (auto* nextHandle = nextActivatableWindowHandle(windows, activeHandle, preferredHandle); nextHandle != nullptr) {
+    m_platform->activateToplevel(nextHandle);
+  }
+}
+
+void Dock::openItemMenu(shell::dock::DockInstance& instance, const shell::dock::DockItemAction& action) {
   assertDockInitialized(m_platform, m_config, m_renderContext);
 
   closeItemMenu();
@@ -620,19 +685,21 @@ void Dock::openItemMenu(shell::dock::DockInstance& instance, shell::dock::DockIt
   m_popupOwnerInstance = &instance;
 
   auto windows = m_platform->windowsForApp(
-      item.idLower, item.startupWmClassLower, shell::dock::dockFilterOutput(m_config->config().dock, instance.output)
+      action.idLower, action.startupWmClassLower,
+      shell::dock::dockFilterOutput(m_config->config().dock, instance.output)
   );
-  const std::string entryId = item.entry.id;
-  const std::string entryWorkingDir = item.entry.workingDir;
-  const bool entryTerminal = item.entry.terminal;
+  const std::string entryId = action.entry.id;
+  const std::string entryWorkingDir = action.entry.workingDir;
+  const bool entryTerminal = action.entry.terminal;
 
   shell::dock::DockMenuCallbacks callbacks{
       .activateWindow = [this](zwlr_foreign_toplevel_handle_v1* handle) { m_platform->activateToplevel(handle); },
       .closeWindow = [this](zwlr_foreign_toplevel_handle_v1* handle) { m_platform->closeToplevel(handle); },
       .launchAction =
-          [this, entryId, entryWorkingDir, entryTerminal](const DesktopAction& action) {
+          [this, entryId, entryWorkingDir, entryTerminal](const DesktopAction& desktopAction) {
             (void)desktop_entry_launch::launchAction(
-                action, entryId, entryWorkingDir, entryTerminal, dockLaunchOptions(*m_platform, *m_config, nullptr)
+                desktopAction, entryId, entryWorkingDir, entryTerminal,
+                dockLaunchOptions(*m_platform, *m_config, nullptr)
             );
           },
       .closeMenu = [this]() { closeItemMenu(); },
@@ -641,7 +708,7 @@ void Dock::openItemMenu(shell::dock::DockInstance& instance, shell::dock::DockIt
   auto* layerSurface =
       instance.surface != nullptr ? m_platform->layerSurfaceFor(instance.surface->wlSurface()) : nullptr;
   m_itemMenu = shell::dock::createItemMenu(
-      *m_platform, *m_config, *m_renderContext, layerSurface, instance.output, m_config->config().dock, item.entry,
+      *m_platform, *m_config, *m_renderContext, layerSurface, instance.output, m_config->config().dock, action.entry,
       windows, callbacks
   );
   if (m_itemMenu == nullptr) {

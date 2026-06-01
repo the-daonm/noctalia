@@ -1,31 +1,26 @@
 #include "shell/dock/dock_items.h"
 
-#include "compositors/compositor_platform.h"
 #include "config/config_service.h"
-#include "core/log.h"
 #include "core/ui_phase.h"
 #include "render/render_context.h"
 #include "render/scene/input_area.h"
 #include "render/scene/node.h"
 #include "shell/dock/dock_geometry.h"
 #include "shell/dock/dock_instance.h"
-#include "system/app_identity.h"
+#include "shell/dock/dock_model.h"
 #include "system/icon_resolver.h"
 #include "ui/builders.h"
 #include "ui/palette.h"
 #include "ui/style.h"
-#include "util/string_utils.h"
 #include "wayland/layer_surface.h"
-#include "wayland/wayland_toplevels.h"
 
 #include <algorithm>
 #include <cmath>
 #include <linux/input-event-codes.h>
 #include <memory>
+#include <utility>
 
 namespace {
-
-  constexpr Logger kLog("dock");
 
   // Instance-count badge geometry — scales with icon size.
   constexpr float kBadgeSizeRatio = 0.30f; // fraction of icon size
@@ -36,186 +31,14 @@ namespace {
   constexpr float kDotGap = 3.0f;
   constexpr float kCellPad = 6.0f;
 
-  zwlr_foreign_toplevel_handle_v1* nextActivatableWindowHandle(
-      const std::vector<ToplevelInfo>& windows, zwlr_foreign_toplevel_handle_v1* activeHandle,
-      zwlr_foreign_toplevel_handle_v1* preferredHandle
-  ) {
-    for (std::size_t i = 0; i < windows.size(); ++i) {
-      if (windows[i].handle != nullptr && windows[i].handle == activeHandle) {
-        for (std::size_t offset = 1; offset <= windows.size(); ++offset) {
-          auto* nextHandle = windows[(i + offset) % windows.size()].handle;
-          if (nextHandle != nullptr) {
-            return nextHandle;
-          }
-        }
-        return nullptr;
-      }
-    }
-
-    for (const auto& window : windows) {
-      if (window.handle != nullptr && window.handle == preferredHandle) {
-        return window.handle;
-      }
-    }
-
-    for (const auto& window : windows) {
-      if (window.handle != nullptr) {
-        return window.handle;
-      }
-    }
-    return nullptr;
-  }
-
 } // namespace
 
 namespace shell::dock {
 
   struct DockItemClickContext {
-    CompositorPlatform& platform;
     ConfigService& config;
-    std::unordered_map<std::string, zwlr_foreign_toplevel_handle_v1*>& lastActiveHandleByAppIdLower;
     DockItemCallbacks callbacks;
   };
-
-  std::string currentActiveEntryIdLower(const CompositorPlatform& platform) {
-    if (const auto active = platform.activeToplevel(); active.has_value()) {
-      return StringUtils::toLower(app_identity::resolveRunningDesktopEntry(active->appId, desktopEntries()).id);
-    }
-    return {};
-  }
-
-  wl_output* dockFilterOutput(const DockConfig& cfg, wl_output* instanceOutput) {
-    if (!cfg.activeMonitorOnly) {
-      return nullptr;
-    }
-    return instanceOutput;
-  }
-
-  bool refreshPinnedAppsIfNeeded(
-      const DockConfig& cfg, std::vector<std::string>& lastPinnedConfig, std::vector<DesktopEntry>& pinnedEntries,
-      std::uint64_t& modelSerial, std::uint64_t& entriesVersion
-  ) {
-    if (desktopEntriesVersion() == entriesVersion && cfg.pinned == lastPinnedConfig) {
-      return false;
-    }
-
-    lastPinnedConfig = cfg.pinned;
-    entriesVersion = desktopEntriesVersion();
-    pinnedEntries.clear();
-
-    const auto& entries = desktopEntries();
-
-    for (const auto& pinnedId : cfg.pinned) {
-      const auto pinnedLower = StringUtils::toLower(pinnedId);
-      bool found = false;
-
-      for (const auto& entry : entries) {
-        if (entry.hidden || entry.noDisplay) {
-          continue;
-        }
-        // Match by entry ID (stem of the desktop file path, e.g. "firefox"),
-        // by StartupWMClass (lower), or by Name (lower).
-        const auto stemLower = StringUtils::toLower([&] {
-          const auto slash = entry.id.rfind('/');
-          const auto base = (slash == std::string::npos) ? entry.id : entry.id.substr(slash + 1);
-          const auto dot = base.rfind('.');
-          return (dot == std::string::npos) ? base : base.substr(0, dot);
-        }());
-
-        if (stemLower == pinnedLower || app_identity::desktopEntryMatchesLower(entry, pinnedLower)) {
-          pinnedEntries.push_back(entry);
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        kLog.debug("pinned app not found: {}", pinnedId);
-        // Add placeholder so the pinned slot is visible even when app is not installed.
-        DesktopEntry placeholder;
-        placeholder.id = pinnedId;
-        placeholder.name = pinnedId;
-        placeholder.nameLower = pinnedLower;
-        pinnedEntries.push_back(std::move(placeholder));
-      }
-    }
-
-    ++modelSerial;
-    kLog.debug("pinned app list: {} entries", pinnedEntries.size());
-    return true;
-  }
-
-  bool matchesActiveApp(const DockItemView& item, std::string_view activeAppIdLower) {
-    return !activeAppIdLower.empty() && activeAppIdLower == item.idLower;
-  }
-
-  bool matchesRunningApp(const DockItemView& item, const std::vector<std::string>& runningLower) {
-    for (const auto& rid : runningLower) {
-      if (!rid.empty() && rid == item.idLower) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool syncInstanceModel(DockInstance& instance, DockItemModelDependencies deps) {
-    const auto& cfg = deps.config.config().dock;
-    const std::string globalActiveIdLower = currentActiveEntryIdLower(deps.platform);
-    if (!globalActiveIdLower.empty()) {
-      if (const auto active = deps.platform.activeToplevel(); active.has_value() && active->handle != nullptr) {
-        deps.lastActiveHandleByAppIdLower[globalActiveIdLower] = active->handle;
-      }
-    }
-    wl_output* const activeOutput = deps.platform.activeToplevelOutput();
-    wl_output* filterOutput = dockFilterOutput(cfg, instance.output);
-    const bool filterOutputChanged = (filterOutput != instance.lastFilterOutput);
-    instance.lastFilterOutput = filterOutput;
-
-    // When filtering by active monitor, inactive monitors' docks should not
-    // highlight the globally-active app — it isn't on them.
-    const std::string activeIdLower =
-        (cfg.activeMonitorOnly && activeOutput != instance.output) ? std::string{} : globalActiveIdLower;
-    instance.activeAppIdLower = activeIdLower;
-
-    const auto runningIds = cfg.showRunning ? deps.platform.runningAppIds(filterOutput) : std::vector<std::string>{};
-    const auto& allEntries = desktopEntries();
-    const auto resolvedRunning = app_identity::resolveRunningApps(runningIds, allEntries);
-    std::vector<std::string> runningLower;
-    runningLower.reserve(resolvedRunning.size());
-    for (const auto& run : resolvedRunning) {
-      runningLower.push_back(StringUtils::toLower(run.entry.id));
-    }
-
-    bool needRebuild = (instance.modelSerial != deps.modelSerial) || filterOutputChanged;
-    if (!needRebuild && cfg.showRunning) {
-      const std::size_t expectedTotal = [&] {
-        std::vector<DesktopEntry> entries = deps.pinnedEntries;
-        for (const auto& run : resolvedRunning) {
-          bool present = false;
-          for (const auto& entry : entries) {
-            if (app_identity::desktopEntryMatchesLower(entry, run.runningLower)) {
-              present = true;
-              break;
-            }
-          }
-          if (!present) {
-            entries.push_back(run.entry);
-          }
-        }
-        return entries.size();
-      }();
-      if (expectedTotal != instance.items.size()) {
-        needRebuild = true;
-      }
-    }
-
-    for (auto& item : instance.items) {
-      item.running = matchesRunningApp(item, runningLower);
-      item.active = matchesActiveApp(item, activeIdLower);
-    }
-
-    return needRebuild;
-  }
 
   std::string_view dockLauncherIconGlyph(const DockConfig& cfg) {
     return cfg.launcherIcon.empty() ? "grid-dots" : std::string_view{cfg.launcherIcon};
@@ -232,7 +55,7 @@ namespace shell::dock {
     );
   }
 
-  void handleItemClick(DockInstance& instance, DockItemView& item, DockItemClickContext& context);
+  void handleItemClick(DockInstance& instance, const DockItemAction& action, DockItemClickContext& context);
 
   std::unique_ptr<InputArea> createLauncherButton(
       DockInstance& instance, const DockConfig& cfg, const std::shared_ptr<DockItemClickContext>& clickContext
@@ -301,7 +124,10 @@ namespace shell::dock {
     return areaNode;
   }
 
-  void rebuildItems(DockInstance& instance, DockItemSceneDependencies deps, const DockItemCallbacks& callbacks) {
+  void rebuildItems(
+      DockInstance& instance, DockItemSceneDependencies deps, const DockSnapshot& snapshot,
+      const DockItemCallbacks& callbacks
+  ) {
     uiAssertNotRendering("shell::dock::rebuildItems");
     if (instance.row == nullptr) {
       return;
@@ -311,9 +137,7 @@ namespace shell::dock {
     const bool vert = shell::dock::isVerticalPosition(cfg.position);
     const float iSize = static_cast<float>(cfg.iconSize);
     auto clickContext = std::make_shared<DockItemClickContext>(DockItemClickContext{
-        .platform = deps.model.platform,
         .config = deps.model.config,
-        .lastActiveHandleByAppIdLower = deps.model.lastActiveHandleByAppIdLower,
         .callbacks = callbacks,
     });
 
@@ -340,56 +164,22 @@ namespace shell::dock {
         instance.panel != nullptr ? instance.panel->addChild(std::move(freshRow))
                                   : instance.sceneRoot->addChild(std::move(freshRow))
     );
-
-    // Determine items: pinned + (optionally) running-only apps not in pinned.
-    std::vector<DesktopEntry> itemEntries = deps.model.pinnedEntries;
-    wl_output* filterOutput = dockFilterOutput(cfg, instance.output);
-    instance.lastFilterOutput = filterOutput;
-
-    if (cfg.showRunning) {
-      const auto runningIds = deps.model.platform.runningAppIds(filterOutput);
-      const auto& allEntries = desktopEntries();
-      const auto resolvedRunning = app_identity::resolveRunningApps(runningIds, allEntries);
-
-      for (const auto& run : resolvedRunning) {
-        bool alreadyPresent = false;
-        for (const auto& itm : itemEntries) {
-          if (app_identity::desktopEntryMatchesLower(itm, run.runningLower)) {
-            alreadyPresent = true;
-            break;
-          }
-        }
-        if (alreadyPresent) {
-          continue;
-        }
-
-        itemEntries.push_back(run.entry);
-      }
-    }
-
-    const auto activeIdLower = instance.activeAppIdLower;
-    const auto runningIds = deps.model.platform.runningAppIds(filterOutput);
-    const auto resolvedRunning = app_identity::resolveRunningApps(runningIds, desktopEntries());
-    std::vector<std::string> runningLower;
-    runningLower.reserve(resolvedRunning.size());
-    for (const auto& run : resolvedRunning) {
-      runningLower.push_back(StringUtils::toLower(run.entry.id));
-    }
+    const auto& itemModels = snapshot.items;
 
     if (cfg.launcherPosition == "start") {
       instance.row->addChild(createLauncherButton(instance, cfg, clickContext));
     }
 
     // Reserve up-front so emplace_back never reallocates while lambdas hold raw pointers.
-    instance.items.reserve(itemEntries.size());
+    instance.items.reserve(itemModels.size());
 
-    for (const auto& entry : itemEntries) {
+    for (const auto& model : itemModels) {
       auto& item = instance.items.emplace_back();
-      item.entry = entry;
-      item.idLower = StringUtils::toLower(entry.id);
-      item.startupWmClassLower = StringUtils::toLower(entry.startupWmClass);
-      item.active = matchesActiveApp(item, activeIdLower);
-      item.running = matchesRunningApp(item, runningLower);
+      DockItemAction action{
+          .entry = model.entry,
+          .idLower = model.idLower,
+          .startupWmClassLower = model.startupWmClassLower,
+      };
 
       const float cellMain = iSize + 2.0f * kCellPad;
       const float cellCross = iSize + 2.0f * kCellPad;
@@ -412,8 +202,8 @@ namespace shell::dock {
       );
 
       const std::string& iconPath = [&]() -> const std::string& {
-        if (!entry.icon.empty()) {
-          const std::string& primary = deps.iconResolver.resolve(entry.icon, cfg.iconSize);
+        if (!model.entry.icon.empty()) {
+          const std::string& primary = deps.iconResolver.resolve(model.entry.icon, cfg.iconSize);
           if (!primary.empty()) {
             return primary;
           }
@@ -526,11 +316,11 @@ namespace shell::dock {
         }
       });
       areaNode->setAcceptedButtons(InputArea::buttonMask({BTN_LEFT, BTN_RIGHT}));
-      areaNode->setOnClick([itemPtr, instPtr, clickContext](const InputArea::PointerData& d) {
+      areaNode->setOnClick([action = std::move(action), instPtr, clickContext](const InputArea::PointerData& d) {
         if (d.button == BTN_LEFT) {
-          handleItemClick(*instPtr, *itemPtr, *clickContext);
+          handleItemClick(*instPtr, action, *clickContext);
         } else if (d.button == BTN_RIGHT && clickContext->callbacks.openItemMenu) {
-          clickContext->callbacks.openItemMenu(*instPtr, *itemPtr);
+          clickContext->callbacks.openItemMenu(*instPtr, action);
         }
       });
 
@@ -541,17 +331,18 @@ namespace shell::dock {
       instance.row->addChild(createLauncherButton(instance, cfg, clickContext));
     }
 
-    instance.modelSerial = deps.model.modelSerial;
-
     shell::dock::resizeSurface(instance, cfg, deps.model.config.config().shell.shadow);
   }
 
-  void updateVisuals(DockInstance& instance, DockItemSceneDependencies deps) {
+  void updateVisuals(DockInstance& instance, DockItemSceneDependencies deps, const DockSnapshot& snapshot) {
     const auto& cfg = deps.model.config.config().dock;
+    const std::size_t itemCount = std::min(instance.items.size(), snapshot.items.size());
 
-    for (auto& item : instance.items) {
-      const float iconScale = item.active ? cfg.activeScale : cfg.inactiveScale;
-      const float iconOpacity = item.active ? cfg.activeOpacity : cfg.inactiveOpacity;
+    for (std::size_t itemIndex = 0; itemIndex < itemCount; ++itemIndex) {
+      auto& item = instance.items[itemIndex];
+      const auto& model = snapshot.items[itemIndex];
+      const float iconScale = model.active ? cfg.activeScale : cfg.inactiveScale;
+      const float iconOpacity = model.active ? cfg.activeOpacity : cfg.inactiveOpacity;
       Node* iconNode =
           item.iconImage != nullptr ? static_cast<Node*>(item.iconImage) : static_cast<Node*>(item.iconGlyph);
 
@@ -591,15 +382,7 @@ namespace shell::dock {
         }
       }
 
-      const bool needsWindowCount = cfg.showDots || item.badge != nullptr;
-      std::size_t count = 0;
-      if (needsWindowCount) {
-        const auto windows = deps.model.platform.windowsForApp(
-            item.idLower, item.startupWmClassLower, dockFilterOutput(cfg, instance.output)
-        );
-        count = windows.size();
-        item.instanceCount = count;
-      }
+      const std::size_t count = model.instanceCount;
 
       if (cfg.showDots) {
         const std::size_t dotCount = std::min<std::size_t>(count, 3);
@@ -651,39 +434,9 @@ namespace shell::dock {
     }
   }
 
-  void handleItemClick(DockInstance& instance, DockItemView& item, DockItemClickContext& context) {
-    if (context.callbacks.pruneCachedToplevelHandles) {
-      context.callbacks.pruneCachedToplevelHandles();
-    }
-
-    auto windows = context.platform.windowsForApp(
-        item.idLower, item.startupWmClassLower, dockFilterOutput(context.config.config().dock, instance.output)
-    );
-
-    if (windows.empty()) {
-      wl_surface* const activationSurface = instance.surface != nullptr ? instance.surface->wlSurface() : nullptr;
-      const auto options = context.callbacks.launchOptions ? context.callbacks.launchOptions(activationSurface)
-                                                           : desktop_entry_launch::LaunchOptions{};
-      (void)desktop_entry_launch::launchEntry(item.entry, options);
-      return;
-    }
-
-    if (windows.size() == 1) {
-      context.platform.activateToplevel(windows[0].handle);
-      return;
-    }
-
-    zwlr_foreign_toplevel_handle_v1* activeHandle = nullptr;
-    if (const auto active = context.platform.activeToplevel(); active.has_value()) {
-      activeHandle = active->handle;
-    }
-
-    auto* preferredHandle = [&]() -> zwlr_foreign_toplevel_handle_v1* {
-      const auto it = context.lastActiveHandleByAppIdLower.find(item.idLower);
-      return it != context.lastActiveHandleByAppIdLower.end() ? it->second : nullptr;
-    }();
-    if (auto* nextHandle = nextActivatableWindowHandle(windows, activeHandle, preferredHandle); nextHandle != nullptr) {
-      context.platform.activateToplevel(nextHandle);
+  void handleItemClick(DockInstance& instance, const DockItemAction& action, DockItemClickContext& context) {
+    if (context.callbacks.activateOrLaunch) {
+      context.callbacks.activateOrLaunch(instance, action);
     }
   }
 

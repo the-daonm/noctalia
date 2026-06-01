@@ -21,6 +21,7 @@ struct zwlr_foreign_toplevel_handle_v1;
 
 namespace shell::dock {
   struct DockInstance;
+  struct DockItemAction;
   struct DockItemView;
   struct DockPopup;
 } // namespace shell::dock
@@ -55,7 +56,8 @@ private:
   bool syncInstanceModel(shell::dock::DockInstance& instance);
   void rebuildItems(shell::dock::DockInstance& instance);
   void updateVisuals(shell::dock::DockInstance& instance);
-  void openItemMenu(shell::dock::DockInstance& instance, shell::dock::DockItemView& item);
+  void activateOrLaunchItem(shell::dock::DockInstance& instance, const shell::dock::DockItemAction& action);
+  void openItemMenu(shell::dock::DockInstance& instance, const shell::dock::DockItemAction& action);
   void closeItemMenu();
 
   CompositorPlatform* m_platform = nullptr;
