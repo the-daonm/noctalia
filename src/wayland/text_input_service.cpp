@@ -139,6 +139,7 @@ void TextInputService::cleanup() {
   m_manager = nullptr;
   m_seat = nullptr;
   m_enteredSurface = nullptr;
+  m_keyboardFocusSurface = nullptr;
   m_activeSurface = nullptr;
   m_activeClient = nullptr;
   m_pendingEdit = {};
@@ -190,6 +191,25 @@ void TextInputService::notifyClientStateChanged(TextInputClient* client, TextInp
     return;
   }
   commitActiveState(cause);
+}
+
+void TextInputService::onKeyboardFocusSurface(wl_surface* surface, bool entered) {
+  if (entered) {
+    m_keyboardFocusSurface = surface;
+  } else if (m_keyboardFocusSurface == surface) {
+    m_keyboardFocusSurface = nullptr;
+  }
+
+  if (m_activeClient != nullptr && m_activeSurface == surface && entered) {
+    enableActive(TextInputChangeCause::Other);
+  }
+}
+
+bool TextInputService::activeSurfaceAcceptsTextInput() const noexcept {
+  if (m_activeSurface == nullptr) {
+    return false;
+  }
+  return m_enteredSurface == m_activeSurface || m_keyboardFocusSurface == m_activeSurface;
 }
 
 void TextInputService::handleEnter(wl_surface* surface) {
@@ -252,7 +272,7 @@ void TextInputService::enableActive(TextInputChangeCause cause) {
   if (m_textInput == nullptr || m_activeClient == nullptr || m_activeSurface == nullptr) {
     return;
   }
-  if (m_enteredSurface != m_activeSurface) {
+  if (!activeSurfaceAcceptsTextInput()) {
     return;
   }
 
@@ -268,7 +288,7 @@ void TextInputService::disableActive() {
     m_enabled = false;
     return;
   }
-  if (m_enteredSurface == m_activeSurface && m_activeSurface != nullptr) {
+  if (activeSurfaceAcceptsTextInput()) {
     zwp_text_input_v3_disable(m_textInput);
     commitProtocolState();
     wl_surface_commit(m_activeSurface);
@@ -280,7 +300,7 @@ void TextInputService::commitActiveState(TextInputChangeCause cause) {
   if (m_textInput == nullptr || m_activeClient == nullptr || m_activeSurface == nullptr || !m_enabled) {
     return;
   }
-  if (m_enteredSurface != m_activeSurface) {
+  if (!activeSurfaceAcceptsTextInput()) {
     return;
   }
 

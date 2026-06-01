@@ -25,6 +25,7 @@ public:
   void setFocusedClient(wl_surface* surface, TextInputClient* client);
   void clearFocusedClient(TextInputClient* client);
   void notifyClientStateChanged(TextInputClient* client, TextInputChangeCause cause);
+  void onKeyboardFocusSurface(wl_surface* surface, bool entered);
 
   void handleEnter(wl_surface* surface);
   void handleLeave(wl_surface* surface);
@@ -35,6 +36,7 @@ public:
   void handleAction(std::uint32_t action);
 
 private:
+  [[nodiscard]] bool activeSurfaceAcceptsTextInput() const noexcept;
   void enableActive(TextInputChangeCause cause);
   void disableActive();
   void commitActiveState(TextInputChangeCause cause);
@@ -45,6 +47,7 @@ private:
   wl_seat* m_seat = nullptr;
   zwp_text_input_v3* m_textInput = nullptr;
   wl_surface* m_enteredSurface = nullptr;
+  wl_surface* m_keyboardFocusSurface = nullptr;
   wl_surface* m_activeSurface = nullptr;
   TextInputClient* m_activeClient = nullptr;
   TextInputEdit m_pendingEdit;

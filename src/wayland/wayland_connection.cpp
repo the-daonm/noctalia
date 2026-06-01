@@ -472,6 +472,13 @@ void WaylandConnection::setClipboardService(ClipboardService* clipboardService) 
 
 void WaylandConnection::setTextInputService(TextInputService* textInputService) {
   m_textInputService = textInputService;
+  if (textInputService != nullptr) {
+    m_seatHandler.setKeyboardFocusCallback([textInputService](wl_surface* surface, bool entered) {
+      textInputService->onKeyboardFocusSurface(surface, entered);
+    });
+  } else {
+    m_seatHandler.setKeyboardFocusCallback({});
+  }
   bindTextInputService();
 }
 

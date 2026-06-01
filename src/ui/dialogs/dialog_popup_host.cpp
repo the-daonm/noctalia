@@ -405,6 +405,15 @@ void DialogPopupHost::buildScene(std::uint32_t width, std::uint32_t height) {
 
   layoutScene(static_cast<float>(width), static_cast<float>(height));
   syncPointerStateFromCurrentPosition();
+
+  DeferredCall::callLater([this]() {
+    if (m_surface == nullptr) {
+      return;
+    }
+    if (auto* focusArea = initialFocusArea(); focusArea != nullptr) {
+      m_inputDispatcher.setFocus(focusArea);
+    }
+  });
 }
 
 void DialogPopupHost::syncSceneGeometryFromSurface() {

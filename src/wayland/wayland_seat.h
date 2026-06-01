@@ -69,11 +69,13 @@ public:
 
   using PointerEventCallback = std::function<void(const PointerEvent&)>;
   using KeyboardEventCallback = std::function<void(const KeyboardEvent&)>;
+  using KeyboardFocusCallback = std::function<void(wl_surface* surface, bool entered)>;
 
   void bind(wl_seat* seat);
   void setCursorShapeManager(wp_cursor_shape_manager_v1* manager);
   void setPointerEventCallback(PointerEventCallback callback);
   void setKeyboardEventCallback(KeyboardEventCallback callback);
+  void setKeyboardFocusCallback(KeyboardFocusCallback callback);
   void setCursorShape(std::uint32_t serial, std::uint32_t shape);
   void forgetSurface(wl_surface* surface) noexcept;
   void cleanup();
@@ -180,6 +182,7 @@ private:
   xkb_compose_table* m_composeTable = nullptr;
   xkb_compose_state* m_composeState = nullptr;
   KeyboardEventCallback m_keyboardEventCallback;
+  KeyboardFocusCallback m_keyboardFocusCallback;
 
   // Key repeat
   SteadyClock::time_point m_lastUserActivitySteady{};

@@ -320,10 +320,6 @@ namespace settings {
     m_createType = option.value;
     m_createLabel = option.label;
     m_createFormVisible = true;
-    if (m_instanceInput != nullptr) {
-      m_instanceInput->setValue(suggestedInstanceId(m_createType));
-      m_instanceInput->setInvalid(false);
-    }
     reopenForCurrentMode();
   }
 
@@ -476,6 +472,9 @@ namespace settings {
     root->addChild(
         ui::input({
             .out = &m_instanceInput,
+            .value = m_createFormVisible && !m_createType.empty()
+                ? std::make_optional(suggestedInstanceId(m_createType))
+                : std::nullopt,
             .placeholder = i18n::tr("settings.entities.widget.instance.id-placeholder"),
             .fontSize = Style::fontSizeBody * m_scale,
             .controlHeight = Style::controlHeight * m_scale,

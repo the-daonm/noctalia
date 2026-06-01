@@ -84,6 +84,10 @@ void WaylandSeat::setKeyboardEventCallback(KeyboardEventCallback callback) {
   m_keyboardEventCallback = std::move(callback);
 }
 
+void WaylandSeat::setKeyboardFocusCallback(KeyboardFocusCallback callback) {
+  m_keyboardFocusCallback = std::move(callback);
+}
+
 void WaylandSeat::setCursorShape(std::uint32_t serial, std::uint32_t shape) {
   if (m_cursorShapeDevice == nullptr || serial == 0) {
     return;
@@ -584,6 +588,9 @@ void WaylandSeat::handleKeyboardEnter(
   auto* self = static_cast<WaylandSeat*>(data);
   self->m_repeatActive = false;
   self->m_lastKeyboardSurface = surface;
+  if (self->m_keyboardFocusCallback) {
+    self->m_keyboardFocusCallback(surface, true);
+  }
 }
 
 void WaylandSeat::handleKeyboardLeave(
@@ -593,6 +600,9 @@ void WaylandSeat::handleKeyboardLeave(
   self->m_repeatActive = false;
   if (self->m_lastKeyboardSurface == surface) {
     self->m_lastKeyboardSurface = nullptr;
+  }
+  if (self->m_keyboardFocusCallback) {
+    self->m_keyboardFocusCallback(surface, false);
   }
 }
 
