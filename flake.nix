@@ -8,7 +8,8 @@
   outputs =
     { self, nixpkgs }:
     let
-      inherit (nixpkgs) lib;
+      inherit (builtins) substring;
+      inherit (nixpkgs.lib) concatStringsSep genAttrs getExe;
 
       systems = [
         "x86_64-linux"
@@ -17,7 +18,7 @@
 
       forEachSystem =
         perSystem:
-        lib.genAttrs systems (
+        genAttrs systems (
           system:
           let
             pkgs = nixpkgs.legacyPackages.${system};
@@ -27,10 +28,10 @@
 
       mkDate =
         longDate:
-        nixpkgs.lib.concatStringsSep "-" [
-          (builtins.substring 0 4 longDate)
-          (builtins.substring 4 2 longDate)
-          (builtins.substring 6 2 longDate)
+        concatStringsSep "-" [
+          (substring 0 4 longDate)
+          (substring 4 2 longDate)
+          (substring 6 2 longDate)
         ];
 
       shortRev = self.shortRev or "dirty";
@@ -38,13 +39,17 @@
     in
     {
       overlays.default = final: prev: {
-        noctalia = final.callPackage ./nix/package.nix { inherit version shortRev; };
+        default = (final.callPackage ./nix/package.nix { }) {
+          inherit version shortRev;
+        };
       };
 
       packages = forEachSystem (
         { pkgs, ... }:
         {
-          default = pkgs.callPackage ./nix/package.nix { inherit version shortRev; };
+          default = (pkgs.callPackage ./nix/package.nix { }) {
+            inherit version shortRev;
+          };
         }
       );
 
@@ -62,7 +67,7 @@
         {
           default = {
             type = "app";
-            program = lib.getExe self.packages.${system}.default;
+            program = getExe self.packages.${system}.default;
           };
         }
       );
