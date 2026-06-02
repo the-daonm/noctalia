@@ -2267,10 +2267,16 @@
           "label": "Force Night Light",
           "description": "Always apply night light regardless of time"
         },
-        "use-weather-location": {
-          "label": "Use Weather Location",
-          "description": "Use weather service location for sunrise/sunset instead of a manual schedule",
-          "requires-weather-location": "Enable weather auto-locate or set a weather address before relying on weather location"
+        "location": {
+          "description": "Shared sunrise/sunset schedule for auto theme mode and night light"
+        },
+        "sunset": {
+          "label": "Sunset",
+          "description": "Manual sunset time in HH:MM when weather location is off"
+        },
+        "sunrise": {
+          "label": "Sunrise",
+          "description": "Manual sunrise time in HH:MM when weather location is off"
         },
         "night-light-start-time": {
           "label": "Start Time",

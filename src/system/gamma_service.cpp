@@ -2,16 +2,14 @@
 
 #include "core/log.h"
 #include "ipc/ipc_service.h"
+#include "system/day_night_schedule.h"
 #include "wayland/wayland_connection.h"
 #include "wlr-gamma-control-unstable-v1-client-protocol.h"
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstring>
-#include <ctime>
-#include <numbers>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -23,10 +21,6 @@ namespace {
   constexpr float kTransitionDurationMs = 1500.0f;
   constexpr int kTransitionIntervalMs = 100;
   constexpr auto kScheduleRecheckInterval = std::chrono::minutes(1);
-
-  int timeToMinutes(std::string_view hhmm) {
-    return (hhmm[0] - '0') * 600 + (hhmm[1] - '0') * 60 + (hhmm[3] - '0') * 10 + (hhmm[4] - '0');
-  }
 
   const zwlr_gamma_control_v1_listener kGammaControlListener = {
       .gamma_size = &GammaService::onGammaSize,
@@ -41,7 +35,7 @@ GammaService::~GammaService() { restoreAll(); }
 
 void GammaService::setChangeCallback(ChangeCallback callback) { m_changeCallback = std::move(callback); }
 
-void GammaService::reload(const NightLightConfig& config) {
+void GammaService::reload(const NightLightConfig& config, const LocationConfig& location) {
   if (config.enabled != m_config.enabled) {
     m_enabledOverride.reset();
   }
@@ -49,6 +43,7 @@ void GammaService::reload(const NightLightConfig& config) {
     m_forceOverride.reset();
   }
   m_config = config;
+  m_location = location;
   apply();
 }
 
@@ -133,71 +128,9 @@ bool GammaService::effectiveForce() const {
   return m_config.force;
 }
 
-bool GammaService::hasWeatherCoordinates() const {
-  return m_weatherLatitude.has_value() && m_weatherLongitude.has_value();
-}
-
-GammaService::GeoCoordinates GammaService::scheduleCoordinates() const {
-  if (m_config.useWeatherLocation && hasWeatherCoordinates()) {
-    return GeoCoordinates{.latitude = m_weatherLatitude, .longitude = m_weatherLongitude};
-  }
-
-  if (m_config.latitude.has_value() || m_config.longitude.has_value()) {
-    if (m_config.latitude.has_value() && m_config.longitude.has_value()) {
-      return GeoCoordinates{.latitude = m_config.latitude, .longitude = m_config.longitude};
-    }
-    return GeoCoordinates{};
-  }
-
-  return GeoCoordinates{};
-}
-
-bool GammaService::isManualMode() const {
-  return !effectiveForce()
-      && (!m_config.useWeatherLocation || !hasWeatherCoordinates())
-      && normalizedClock(m_config.startTime).has_value()
-      && normalizedClock(m_config.stopTime).has_value();
-}
-
-bool GammaService::isManualNightPhase() const {
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm local{};
-  ::localtime_r(&t, &local);
-  const int nowMin = local.tm_hour * 60 + local.tm_min;
-
-  const int sunsetMin = timeToMinutes(m_config.startTime);
-  const int sunriseMin = timeToMinutes(m_config.stopTime);
-
-  if (sunsetMin < sunriseMin) {
-    return nowMin >= sunsetMin && nowMin < sunriseMin;
-  }
-  return nowMin >= sunsetMin || nowMin < sunriseMin;
-}
-
-std::chrono::milliseconds GammaService::msUntilNextManualBoundary() const {
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm local{};
-  ::localtime_r(&t, &local);
-  const int nowMin = local.tm_hour * 60 + local.tm_min;
-  const int nowSec = local.tm_sec;
-
-  const int sunsetMin = timeToMinutes(m_config.startTime);
-  const int sunriseMin = timeToMinutes(m_config.stopTime);
-  const int targetMin = isManualNightPhase() ? sunriseMin : sunsetMin;
-
-  int diffMin = targetMin - nowMin;
-  if (diffMin <= 0) {
-    diffMin += 1440;
-  }
-
-  const auto ms = std::chrono::milliseconds(diffMin * 60 * 1000 - nowSec * 1000);
-  return std::max(ms, std::chrono::milliseconds(1000));
-}
-
 void GammaService::scheduleManualTimer() {
-  const auto boundaryDelay = msUntilNextManualBoundary();
+  const auto boundaryDelay =
+      day_night_schedule::evaluate(m_location, m_weatherLatitude, m_weatherLongitude).untilBoundary;
   const auto delay =
       std::min(boundaryDelay, std::chrono::duration_cast<std::chrono::milliseconds>(kScheduleRecheckInterval));
   kLog.debug(
@@ -211,139 +144,9 @@ void GammaService::scheduleManualTimer() {
   });
 }
 
-std::optional<std::string> GammaService::normalizedClock(std::string_view value) const {
-  if (value.size() != 5 || value[2] != ':') {
-    return std::nullopt;
-  }
-  if (!std::isdigit(static_cast<unsigned char>(value[0]))
-      || !std::isdigit(static_cast<unsigned char>(value[1]))
-      || !std::isdigit(static_cast<unsigned char>(value[3]))
-      || !std::isdigit(static_cast<unsigned char>(value[4]))) {
-    return std::nullopt;
-  }
-  const int hour = (value[0] - '0') * 10 + (value[1] - '0');
-  const int minute = (value[3] - '0') * 10 + (value[4] - '0');
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    return std::nullopt;
-  }
-  return std::string(value);
-}
-
-// --- Solar position (simplified NOAA) ---
-
-GammaService::SolarTimes GammaService::computeSolarTimes(double lat, double lon) const {
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm local{};
-  ::localtime_r(&t, &local);
-
-  constexpr double kPi = std::numbers::pi;
-  const double dayOfYear = static_cast<double>(local.tm_yday + 1);
-  const double fractionalYear = 2.0 * kPi / 365.0 * (dayOfYear - 1.0);
-
-  const double equationOfTime = 229.18
-      * (0.000075
-         + 0.001868 * std::cos(fractionalYear)
-         - 0.032077 * std::sin(fractionalYear)
-         - 0.014615 * std::cos(2.0 * fractionalYear)
-         - 0.040849 * std::sin(2.0 * fractionalYear));
-  const double declination = 0.006918
-      - 0.399912 * std::cos(fractionalYear)
-      + 0.070257 * std::sin(fractionalYear)
-      - 0.006758 * std::cos(2.0 * fractionalYear)
-      + 0.000907 * std::sin(2.0 * fractionalYear)
-      - 0.002697 * std::cos(3.0 * fractionalYear)
-      + 0.00148 * std::sin(3.0 * fractionalYear);
-
-  constexpr double kSunriseZenith = 90.833 * kPi / 180.0;
-  const double latRad = lat * kPi / 180.0;
-  const double hourAngleArg =
-      std::cos(kSunriseZenith) / (std::cos(latRad) * std::cos(declination)) - std::tan(latRad) * std::tan(declination);
-
-  if (hourAngleArg > 1.0) {
-    return SolarTimes{.sunriseMinutes = 0, .sunsetMinutes = 0};
-  }
-  if (hourAngleArg < -1.0) {
-    return SolarTimes{.sunriseMinutes = 0, .sunsetMinutes = 1440};
-  }
-
-  const double hourAngleDeg = std::acos(std::clamp(hourAngleArg, -1.0, 1.0)) * 180.0 / kPi;
-  const double timeZoneOffsetMin = static_cast<double>(local.tm_gmtoff) / 60.0;
-  const double solarNoonMin = 720.0 - 4.0 * lon - equationOfTime + timeZoneOffsetMin;
-
-  auto normalizeMinutes = [](double minutes) -> int {
-    int rounded = static_cast<int>(std::round(minutes));
-    rounded %= 1440;
-    if (rounded < 0) {
-      rounded += 1440;
-    }
-    return rounded;
-  };
-
-  return SolarTimes{
-      .sunriseMinutes = normalizeMinutes(solarNoonMin - hourAngleDeg * 4.0),
-      .sunsetMinutes = normalizeMinutes(solarNoonMin + hourAngleDeg * 4.0),
-  };
-}
-
-bool GammaService::isGeoNightPhase() const {
-  const auto coords = scheduleCoordinates();
-  if (!coords.latitude.has_value() || !coords.longitude.has_value()) {
-    return false;
-  }
-
-  const auto times = computeSolarTimes(*coords.latitude, *coords.longitude);
-  if (times.sunriseMinutes == 0 && times.sunsetMinutes == 0) {
-    return true;
-  }
-  if (times.sunriseMinutes == 0 && times.sunsetMinutes == 1440) {
-    return false;
-  }
-
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm local{};
-  ::localtime_r(&t, &local);
-  const int nowMin = local.tm_hour * 60 + local.tm_min;
-
-  const int sunset = times.sunsetMinutes;
-  const int sunrise = times.sunriseMinutes;
-  if (sunset > sunrise) {
-    return nowMin >= sunset || nowMin < sunrise;
-  }
-  return nowMin >= sunset && nowMin < sunrise;
-}
-
-std::chrono::milliseconds GammaService::msUntilNextGeoBoundary() const {
-  const auto coords = scheduleCoordinates();
-  if (!coords.latitude.has_value() || !coords.longitude.has_value()) {
-    return std::chrono::milliseconds(3600000);
-  }
-
-  const auto times = computeSolarTimes(*coords.latitude, *coords.longitude);
-  if (times.sunriseMinutes == 0 && (times.sunsetMinutes == 0 || times.sunsetMinutes == 1440)) {
-    return std::chrono::milliseconds(3600000);
-  }
-
-  const auto now = std::chrono::system_clock::now();
-  const std::time_t t = std::chrono::system_clock::to_time_t(now);
-  std::tm local{};
-  ::localtime_r(&t, &local);
-  const int nowMin = local.tm_hour * 60 + local.tm_min;
-  const int nowSec = local.tm_sec;
-
-  const int targetMin = isGeoNightPhase() ? times.sunriseMinutes : times.sunsetMinutes;
-  int diffMin = targetMin - nowMin;
-  if (diffMin <= 0) {
-    diffMin += 1440;
-  }
-
-  const auto ms = std::chrono::milliseconds(diffMin * 60 * 1000 - nowSec * 1000);
-  return std::max(ms, std::chrono::milliseconds(1000));
-}
-
 void GammaService::scheduleGeoTimer() {
-  const auto boundaryDelay = msUntilNextGeoBoundary();
+  const auto boundaryDelay =
+      day_night_schedule::evaluate(m_location, m_weatherLatitude, m_weatherLongitude).untilBoundary;
   const auto delay =
       std::min(boundaryDelay, std::chrono::duration_cast<std::chrono::milliseconds>(kScheduleRecheckInterval));
   kLog.debug(
@@ -358,10 +161,7 @@ void GammaService::scheduleGeoTimer() {
 }
 
 bool GammaService::isNightPhase() const {
-  if (isManualMode()) {
-    return isManualNightPhase();
-  }
-  return isGeoNightPhase();
+  return day_night_schedule::evaluate(m_location, m_weatherLatitude, m_weatherLongitude).night;
 }
 
 // --- Gamma ramp math ---
@@ -604,29 +404,29 @@ int GammaService::targetTemperature() const {
     return nightTemp;
   }
 
-  if (isManualMode()) {
-    return isManualNightPhase() ? nightTemp : dayTemp;
+  const bool manualMode = day_night_schedule::isManualMode(m_location, m_weatherLatitude, m_weatherLongitude);
+  if (manualMode) {
+    return day_night_schedule::evaluate(m_location, m_weatherLatitude, m_weatherLongitude).night ? nightTemp : dayTemp;
   }
 
-  // Geo mode - need coordinates.
-  const auto coords = scheduleCoordinates();
+  const auto coords = day_night_schedule::resolveCoordinates(m_location, m_weatherLatitude, m_weatherLongitude);
   if (!coords.latitude.has_value() || !coords.longitude.has_value()) {
-    if (!m_config.useWeatherLocation && (m_config.latitude.has_value() || m_config.longitude.has_value())) {
+    if (!m_location.useWeatherLocation && (m_location.latitude.has_value() || m_location.longitude.has_value())) {
       kLog.warn("need both latitude and longitude when overriding location mode");
-    } else if (!m_config.useWeatherLocation) {
-      kLog.warn("no schedule: set start_time/stop_time or latitude/longitude, or enable weather location");
+    } else if (!m_location.useWeatherLocation) {
+      kLog.warn("no schedule: set sunset/sunrise or latitude/longitude, or enable weather location");
     } else if (m_weatherLocationConfigured) {
       kLog.debug("night light schedule waiting for weather location");
     } else {
       kLog.warn(
-          "no schedule: configure weather location or disable weather location and set start_time/stop_time or "
+          "no schedule: configure weather location or disable weather location and set sunset/sunrise or "
           "latitude/longitude"
       );
     }
     return -1;
   }
 
-  return isGeoNightPhase() ? nightTemp : dayTemp;
+  return day_night_schedule::evaluate(m_location, m_weatherLatitude, m_weatherLongitude).night ? nightTemp : dayTemp;
 }
 
 void GammaService::apply() {
@@ -641,11 +441,11 @@ void GammaService::apply() {
     return;
   }
 
-  const bool manualMode = isManualMode();
+  const bool manualMode = day_night_schedule::isManualMode(m_location, m_weatherLatitude, m_weatherLongitude);
   if (effectiveEnabled() && manualMode) {
     scheduleManualTimer();
   } else if (effectiveEnabled() && !effectiveForce()) {
-    const auto coords = scheduleCoordinates();
+    const auto coords = day_night_schedule::resolveCoordinates(m_location, m_weatherLatitude, m_weatherLongitude);
     if (coords.latitude.has_value() && coords.longitude.has_value()) {
       scheduleGeoTimer();
     } else {

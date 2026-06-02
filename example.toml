@@ -185,13 +185,17 @@ enable_ddcutil = false
 [nightlight]
 enabled              = false
 force                = false
-use_weather_location = true          # prefer weather coordinates; requires weather auto_locate or address
 temperature_day      = 6500         # Kelvin
 temperature_night    = 4000         # Kelvin
-# start_time = "20:30"              # HH:MM — manual/fallback schedule
-# stop_time  = "07:30"
-# latitude   = 52.5200              # manual/fallback location when start/stop are unset
-# longitude  = 13.4050
+
+# ── Location ──────────────────────────────────────────────────────────────────
+
+[location]
+use_weather_location = true          # prefer weather coordinates; requires weather auto_locate or address
+# sunset    = "20:30"                # HH:MM — manual night start when weather location is off
+# sunrise   = "07:30"                # HH:MM — manual day start when weather location is off
+# latitude  = 52.5200                # manual sunrise/sunset location when weather location is off
+# longitude = 13.4050
 
 # ── Idle ──────────────────────────────────────────────────────────────────────
 

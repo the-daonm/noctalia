@@ -26,7 +26,7 @@ public:
   GammaService(const GammaService&) = delete;
   GammaService& operator=(const GammaService&) = delete;
 
-  void reload(const NightLightConfig& config);
+  void reload(const NightLightConfig& config, const LocationConfig& location);
   void setWeatherLocationConfigured(bool configured);
   void setWeatherCoordinates(std::optional<double> latitude, std::optional<double> longitude);
   void setEnabled(bool enabled);
@@ -52,26 +52,7 @@ private:
   [[nodiscard]] bool effectiveEnabled() const;
   [[nodiscard]] bool effectiveForce() const;
 
-  struct GeoCoordinates {
-    std::optional<double> latitude;
-    std::optional<double> longitude;
-  };
-  [[nodiscard]] bool hasWeatherCoordinates() const;
-  [[nodiscard]] GeoCoordinates scheduleCoordinates() const;
-
-  [[nodiscard]] bool isManualMode() const;
-  [[nodiscard]] bool isManualNightPhase() const;
-  [[nodiscard]] std::chrono::milliseconds msUntilNextManualBoundary() const;
-  [[nodiscard]] std::optional<std::string> normalizedClock(std::string_view value) const;
   void scheduleManualTimer();
-
-  struct SolarTimes {
-    int sunriseMinutes = 0;
-    int sunsetMinutes = 0;
-  };
-  [[nodiscard]] SolarTimes computeSolarTimes(double latitude, double longitude) const;
-  [[nodiscard]] bool isGeoNightPhase() const;
-  [[nodiscard]] std::chrono::milliseconds msUntilNextGeoBoundary() const;
   void scheduleGeoTimer();
 
   void apply();
@@ -106,6 +87,7 @@ private:
 
   WaylandConnection& m_wayland;
   NightLightConfig m_config;
+  LocationConfig m_location;
   std::optional<bool> m_enabledOverride;
   std::optional<bool> m_forceOverride;
   bool m_weatherLocationConfigured = false;

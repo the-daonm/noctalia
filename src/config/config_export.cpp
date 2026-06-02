@@ -748,18 +748,21 @@ namespace config_export {
     toml::table nightlight;
     nightlight.insert_or_assign("enabled", config.nightlight.enabled);
     nightlight.insert_or_assign("force", config.nightlight.force);
-    nightlight.insert_or_assign("use_weather_location", config.nightlight.useWeatherLocation);
-    nightlight.insert_or_assign("start_time", config.nightlight.startTime);
-    nightlight.insert_or_assign("stop_time", config.nightlight.stopTime);
-    if (config.nightlight.latitude.has_value()) {
-      nightlight.insert_or_assign("latitude", *config.nightlight.latitude);
-    }
-    if (config.nightlight.longitude.has_value()) {
-      nightlight.insert_or_assign("longitude", *config.nightlight.longitude);
-    }
     nightlight.insert_or_assign("temperature_day", static_cast<std::int64_t>(config.nightlight.dayTemperature));
     nightlight.insert_or_assign("temperature_night", static_cast<std::int64_t>(config.nightlight.nightTemperature));
     root.insert_or_assign("nightlight", std::move(nightlight));
+
+    toml::table location;
+    location.insert_or_assign("use_weather_location", config.location.useWeatherLocation);
+    location.insert_or_assign("sunset", config.location.sunset);
+    location.insert_or_assign("sunrise", config.location.sunrise);
+    if (config.location.latitude.has_value()) {
+      location.insert_or_assign("latitude", *config.location.latitude);
+    }
+    if (config.location.longitude.has_value()) {
+      location.insert_or_assign("longitude", *config.location.longitude);
+    }
+    root.insert_or_assign("location", std::move(location));
 
     root.insert_or_assign("idle", idleTable(config.idle));
 

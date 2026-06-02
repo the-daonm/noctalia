@@ -6,6 +6,7 @@
 #include "core/scoped_timer.h"
 #include "ipc/ipc_service.h"
 #include "net/http_client.h"
+#include "system/day_night_schedule.h"
 #include "theme/builtin_palettes.h"
 #include "theme/community_palettes.h"
 #include "theme/custom_palettes.h"
@@ -18,10 +19,10 @@
 
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <exception>
 #include <filesystem>
 #include <fstream>
-#include <gio/gio.h>
 #include <json.hpp>
 #include <sstream>
 #include <string>
@@ -43,50 +44,28 @@ namespace noctalia::theme {
       std::string mode;
     };
 
-    // Returns "light" or "dark" from org.gnome.desktop.interface color-scheme.
-    std::string_view readSystemColorScheme() {
-      static GSettings* settings = []() -> GSettings* {
-        GSettingsSchemaSource* source = g_settings_schema_source_get_default();
-        if (source == nullptr)
-          return nullptr;
-        GSettingsSchema* schema = g_settings_schema_source_lookup(source, "org.gnome.desktop.interface", TRUE);
-        if (schema == nullptr)
-          return nullptr;
-        const bool hasKey = g_settings_schema_has_key(schema, "color-scheme") != FALSE;
-        g_settings_schema_unref(schema);
-        if (!hasKey)
-          return nullptr;
-        return g_settings_new("org.gnome.desktop.interface");
-      }();
-
-      if (settings == nullptr)
-        return "dark";
-      gchar* raw = g_settings_get_string(settings, "color-scheme");
-      if (raw == nullptr)
-        return "dark";
-      const bool isLight = (std::string_view(raw) == "prefer-light");
-      g_free(raw);
-      return isLight ? "light" : "dark";
-    }
-
-    std::string resolvedModeName(const ThemeConfig& cfg) {
-      if (cfg.mode == ThemeMode::Auto)
-        return std::string(readSystemColorScheme());
+    std::string resolvedModeName(
+        const ThemeConfig& cfg, const LocationConfig& location, std::optional<double> latitude,
+        std::optional<double> longitude
+    ) {
+      if (cfg.mode == ThemeMode::Auto) {
+        const auto eval = day_night_schedule::evaluate(location, latitude, longitude);
+        return eval.night ? "dark" : "light";
+      }
       return cfg.mode == ThemeMode::Light ? "light" : "dark";
     }
 
-    ResolvedTheme resolveBuiltin(const ThemeConfig& cfg) {
+    ResolvedTheme resolveBuiltin(const ThemeConfig& cfg, std::string_view mode) {
       const auto* palette = findBuiltinPalette(cfg.builtinPalette);
       if (palette == nullptr) {
         kLog.warn("unknown builtin palette '{}', falling back to Noctalia", cfg.builtinPalette);
         palette = findBuiltinPalette("Noctalia");
       }
-      const std::string mode = resolvedModeName(cfg);
       const GeneratedPalette generated = expandBuiltinPalette(*palette);
       return {
           .generated = generated,
           .palette = mapGeneratedPaletteMode(mode == "light" ? generated.light : generated.dark),
-          .mode = mode,
+          .mode = std::string(mode),
       };
     }
 
@@ -216,18 +195,17 @@ namespace noctalia::theme {
       }
     }
 
-    ResolvedTheme makeResolvedFromParsed(const ParsedCommunityPalette& parsed, const ThemeConfig& cfg) {
+    ResolvedTheme makeResolvedFromParsed(const ParsedCommunityPalette& parsed, std::string_view mode) {
       BuiltinPalette bp{
           .name = "community",
           .dark = parsed.dark,
           .light = parsed.light,
       };
-      const std::string mode = resolvedModeName(cfg);
       const GeneratedPalette generated = expandBuiltinPalette(bp);
       return {
           .generated = generated,
           .palette = mapGeneratedPaletteMode(mode == "light" ? generated.light : generated.dark),
-          .mode = mode,
+          .mode = std::string(mode),
       };
     }
 
@@ -247,6 +225,23 @@ namespace noctalia::theme {
   }
 
   void ThemeService::onAutoSchemeChanged() {
+    if (m_config.config().theme.mode == ThemeMode::Auto) {
+      resolveAndSet(/*animate=*/true);
+    }
+  }
+
+  void ThemeService::setAutoCoordinates(std::optional<double> latitude, std::optional<double> longitude) {
+    if (latitude.has_value() && !std::isfinite(*latitude)) {
+      latitude.reset();
+    }
+    if (longitude.has_value() && !std::isfinite(*longitude)) {
+      longitude.reset();
+    }
+    if (m_autoLatitude == latitude && m_autoLongitude == longitude) {
+      return;
+    }
+    m_autoLatitude = latitude;
+    m_autoLongitude = longitude;
     if (m_config.config().theme.mode == ThemeMode::Auto) {
       resolveAndSet(/*animate=*/true);
     }
@@ -406,12 +401,13 @@ namespace noctalia::theme {
   void ThemeService::resolveAndSet(bool animate) {
     profiling::ScopedTimer t(kLog, "theme: resolveAndSet");
     const auto& cfg = m_config.config().theme;
+    const std::string mode = resolvedModeName(cfg, m_config.config().location, m_autoLatitude, m_autoLongitude);
     std::optional<ResolvedTheme> resolved;
     if (cfg.source == PaletteSource::Custom && !cfg.customPalette.empty()) {
       const auto path = customPalettePath(cfg.customPalette);
       if (std::filesystem::exists(path)) {
         if (auto parsed = parseCommunityPaletteJson(path)) {
-          resolved = makeResolvedFromParsed(*parsed, cfg);
+          resolved = makeResolvedFromParsed(*parsed, mode);
         }
       }
       if (!resolved.has_value()) {
@@ -419,7 +415,6 @@ namespace noctalia::theme {
       }
     } else if (cfg.source == PaletteSource::Wallpaper) {
       if (auto generated = resolveWallpaperGenerated(cfg, m_config.getPaletteWallpaperPath())) {
-        const std::string mode = resolvedModeName(cfg);
         resolved = ResolvedTheme{
             .generated = *generated,
             .palette = mapGeneratedPaletteMode(mode == "light" ? generated->light : generated->dark),
@@ -431,7 +426,7 @@ namespace noctalia::theme {
       bool stale = true;
       if (std::filesystem::exists(cachePath)) {
         if (auto parsed = parseCommunityPaletteJson(cachePath)) {
-          resolved = makeResolvedFromParsed(*parsed, cfg);
+          resolved = makeResolvedFromParsed(*parsed, mode);
           // Re-fetch when the catalog advertises a different checksum than the
           // cached copy. An empty catalog md5 means "freshness unknown" — keep
           // the cached palette rather than re-downloading on every resolve.
@@ -449,7 +444,7 @@ namespace noctalia::theme {
       }
     }
     if (!resolved.has_value()) {
-      resolved = resolveBuiltin(cfg);
+      resolved = resolveBuiltin(cfg, mode);
     }
 
     queueResolvedCallback(resolved->generated, resolved->mode);
@@ -473,6 +468,20 @@ namespace noctalia::theme {
       }
       flushResolvedCallback(/*defer=*/false);
     }
+    rescheduleAutoTimer();
+  }
+
+  void ThemeService::rescheduleAutoTimer() {
+    m_autoTimer.stop();
+    if (m_config.config().theme.mode != ThemeMode::Auto) {
+      return;
+    }
+    constexpr auto kAutoRecheckInterval = std::chrono::minutes(1);
+    const auto nextBoundary =
+        day_night_schedule::evaluate(m_config.config().location, m_autoLatitude, m_autoLongitude).untilBoundary;
+    const auto delay =
+        std::min(nextBoundary, std::chrono::duration_cast<std::chrono::milliseconds>(kAutoRecheckInterval));
+    m_autoTimer.start(delay, [this]() { onAutoSchemeChanged(); });
   }
 
   void ThemeService::startTransition(const Palette& target) {

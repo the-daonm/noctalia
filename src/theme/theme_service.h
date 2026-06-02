@@ -32,6 +32,7 @@ namespace noctalia::theme {
     void onConfigReload();
     void onWallpaperChange();
     void onAutoSchemeChanged();
+    void setAutoCoordinates(std::optional<double> latitude, std::optional<double> longitude);
     void toggleLightDark();
     void cycleMode();
     [[nodiscard]] ThemeMode configuredMode() const noexcept;
@@ -54,6 +55,7 @@ namespace noctalia::theme {
     void finishTransition(bool deferResolvedCallback);
     void tickTransition();
     void startCommunityDownload(const std::string& name);
+    void rescheduleAutoTimer();
 
     ConfigService& m_config;
     HttpClient& m_httpClient;
@@ -81,6 +83,9 @@ namespace noctalia::theme {
     AnimationManager::Id m_transitionAnimId = 0;
     bool m_transitionResolvedCallbackFlushed = false;
     bool m_isLightMode = false;
+    std::optional<double> m_autoLatitude;
+    std::optional<double> m_autoLongitude;
+    Timer m_autoTimer;
   };
 
 } // namespace noctalia::theme

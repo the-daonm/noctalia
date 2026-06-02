@@ -546,6 +546,7 @@ void ConfigService::fireReloadCallbacks() {
     add(m_lastChange.brightness, "brightness");
     add(m_lastChange.keybinds, "keybinds");
     add(m_lastChange.nightlight, "nightlight");
+    add(m_lastChange.location, "location");
     add(m_lastChange.idle, "idle");
     add(m_lastChange.hooks, "hooks");
     add(m_lastChange.theme, "theme");
@@ -2426,21 +2427,6 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
     if (auto v = (*nightlightTbl)["force"].value<bool>()) {
       nightlight.force = *v;
     }
-    if (auto v = (*nightlightTbl)["use_weather_location"].value<bool>()) {
-      nightlight.useWeatherLocation = *v;
-    }
-    if (auto v = (*nightlightTbl)["start_time"].value<std::string>()) {
-      nightlight.startTime = *v;
-    }
-    if (auto v = (*nightlightTbl)["stop_time"].value<std::string>()) {
-      nightlight.stopTime = *v;
-    }
-    if (auto v = finiteDouble((*nightlightTbl)["latitude"])) {
-      nightlight.latitude = *v;
-    }
-    if (auto v = finiteDouble((*nightlightTbl)["longitude"])) {
-      nightlight.longitude = *v;
-    }
     if (auto v = (*nightlightTbl)["temperature_day"].value<int64_t>()) {
       nightlight.dayTemperature = std::clamp(static_cast<std::int32_t>(*v), 1000, 25000);
     }
@@ -2460,6 +2446,26 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
           "nightlight temperatures must satisfy day > night (day={}K night={}K); adjusted to day={}K night={}K",
           origDay, origNight, nightlight.dayTemperature, nightlight.nightTemperature
       );
+    }
+  }
+
+  // Parse [location]
+  if (auto* locationTbl = tbl["location"].as_table()) {
+    auto& location = config.location;
+    if (auto v = (*locationTbl)["use_weather_location"].value<bool>()) {
+      location.useWeatherLocation = *v;
+    }
+    if (auto v = (*locationTbl)["sunset"].value<std::string>()) {
+      location.sunset = *v;
+    }
+    if (auto v = (*locationTbl)["sunrise"].value<std::string>()) {
+      location.sunrise = *v;
+    }
+    if (auto v = finiteDouble((*locationTbl)["latitude"])) {
+      location.latitude = *v;
+    }
+    if (auto v = finiteDouble((*locationTbl)["longitude"])) {
+      location.longitude = *v;
     }
   }
 

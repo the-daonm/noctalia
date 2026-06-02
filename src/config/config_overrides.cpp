@@ -293,6 +293,7 @@ namespace {
         && a.brightness == b.brightness
         && a.keybinds == b.keybinds
         && a.nightlight == b.nightlight
+        && a.location == b.location
         && a.idle == b.idle
         && a.hooks == b.hooks
         && a.theme == b.theme
@@ -604,6 +605,7 @@ ConfigChangeSet computeConfigChangeSet(const Config& prev, const Config& next) {
       .brightness = !(prev.brightness == next.brightness),
       .keybinds = !(prev.keybinds == next.keybinds),
       .nightlight = !(prev.nightlight == next.nightlight),
+      .location = !(prev.location == next.location),
       .idle = !(prev.idle == next.idle),
       .hooks = !(prev.hooks == next.hooks),
       .theme = !(prev.theme == next.theme),

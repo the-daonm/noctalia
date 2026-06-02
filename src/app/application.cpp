@@ -473,22 +473,6 @@ void Application::initServices() {
   m_themeService.apply();
   m_configService.addReloadCallback([this]() { m_themeService.onConfigReload(); }, "theme");
 
-  // Watch the dconf user database so Auto mode reacts immediately to system
-  // color-scheme changes (org.gnome.desktop.interface color-scheme).
-  {
-    const char* xdg = std::getenv("XDG_CONFIG_HOME");
-    const char* home = std::getenv("HOME");
-    std::filesystem::path dconfDb;
-    if (xdg != nullptr && xdg[0] != '\0') {
-      dconfDb = std::filesystem::path(xdg) / "dconf" / "user";
-    } else if (home != nullptr && home[0] != '\0') {
-      dconfDb = std::filesystem::path(home) / ".config" / "dconf" / "user";
-    }
-    if (!dconfDb.empty()) {
-      m_fileWatcher.watch(dconfDb, [this]() { m_themeService.onAutoSchemeChanged(); });
-    }
-  }
-
   if (!m_wayland.connect()) {
     throw std::runtime_error("failed to connect to Wayland display");
   }
@@ -607,7 +591,7 @@ void Application::initServices() {
     );
   };
   syncNightLightWeatherConfig();
-  m_gammaService.reload(m_configService.config().nightlight);
+  m_gammaService.reload(m_configService.config().nightlight, m_configService.config().location);
   m_gammaService.setChangeCallback([this, shouldRefreshControlCenter]() {
     m_bar.refresh();
     if (shouldRefreshControlCenter()) {
@@ -616,7 +600,7 @@ void Application::initServices() {
   });
   m_configService.addReloadCallback([this, syncNightLightWeatherConfig]() {
     syncNightLightWeatherConfig();
-    m_gammaService.reload(m_configService.config().nightlight);
+    m_gammaService.reload(m_configService.config().nightlight, m_configService.config().location);
   });
 
   // Register all wallpaper consumers in the single-callback slot.
@@ -984,8 +968,10 @@ void Application::initServices() {
     const auto coords = m_weatherService.resolvedCoordinates();
     if (coords.has_value()) {
       m_gammaService.setWeatherCoordinates(coords->latitude, coords->longitude);
+      m_themeService.setAutoCoordinates(coords->latitude, coords->longitude);
     } else {
       m_gammaService.setWeatherCoordinates(std::nullopt, std::nullopt);
+      m_themeService.setAutoCoordinates(std::nullopt, std::nullopt);
     }
   };
   syncNightLightWeatherCoordinates();
@@ -994,8 +980,10 @@ void Application::initServices() {
     const auto coords = m_weatherService.resolvedCoordinates();
     if (coords.has_value()) {
       m_gammaService.setWeatherCoordinates(coords->latitude, coords->longitude);
+      m_themeService.setAutoCoordinates(coords->latitude, coords->longitude);
     } else {
       m_gammaService.setWeatherCoordinates(std::nullopt, std::nullopt);
+      m_themeService.setAutoCoordinates(std::nullopt, std::nullopt);
     }
     m_bar.refresh();
     m_desktopWidgetsController.requestLayout();

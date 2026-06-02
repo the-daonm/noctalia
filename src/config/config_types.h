@@ -856,15 +856,20 @@ struct NightLightConfig {
 
   bool enabled = false;
   bool force = false;
-  bool useWeatherLocation = true; // prefer WeatherService coordinates; fall back to manual schedule/location if absent
-  std::string startTime;          // HH:MM sunset (night start), used for manual/fallback schedule
-  std::string stopTime;           // HH:MM sunrise (day start)
-  std::optional<double> latitude;
-  std::optional<double> longitude;
   std::int32_t dayTemperature = 6500;
   std::int32_t nightTemperature = 4000;
 
   bool operator==(const NightLightConfig&) const = default;
+};
+
+struct LocationConfig {
+  bool useWeatherLocation = true; // prefer WeatherService coordinates; fall back to manual schedule/location if absent
+  std::string sunset;             // HH:MM night start for manual schedule
+  std::string sunrise;            // HH:MM day start for manual schedule
+  std::optional<double> latitude;
+  std::optional<double> longitude;
+
+  bool operator==(const LocationConfig&) const = default;
 };
 
 enum class HookKind : std::uint8_t {
@@ -1056,6 +1061,7 @@ struct Config {
   BrightnessConfig brightness;
   KeybindsConfig keybinds;
   NightLightConfig nightlight;
+  LocationConfig location;
   IdleConfig idle;
   HooksConfig hooks;
   ThemeConfig theme;
@@ -1083,6 +1089,7 @@ struct ConfigChangeSet {
   bool brightness = true;
   bool keybinds = true;
   bool nightlight = true;
+  bool location = true;
   bool idle = true;
   bool hooks = true;
   bool theme = true;
@@ -1106,6 +1113,7 @@ struct ConfigChangeSet {
         || brightness
         || keybinds
         || nightlight
+        || location
         || idle
         || hooks
         || theme

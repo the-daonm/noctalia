@@ -1446,71 +1446,60 @@ namespace settings {
       e.visibleWhen = weatherOn;
       entries.push_back(std::move(e));
     }
-    const SettingVisibility calendarOn{{"calendar", "enabled"}, {"true"}};
+
+    const bool weatherLocationConfigured =
+        cfg.weather.enabled && (cfg.weather.autoLocate || !cfg.weather.address.empty());
     entries.push_back(makeEntry(
-        "services", "calendar", tr("settings.schema.services.calendar.label"),
-        tr("settings.schema.services.calendar.description"), {"calendar", "enabled"},
-        ToggleSetting{cfg.calendar.enabled}, "calendar events caldav google"
+        "services", "location", tr("settings.schema.services.weather-location.label"),
+        tr("settings.schema.services.location.description"), {"location", "use_weather_location"},
+        ToggleSetting{cfg.location.useWeatherLocation}, "location schedule sunrise sunset"
     ));
+    const SettingVisibility locationWeatherLocationOff{std::vector<SettingVisibilityCondition>{
+        {{"location", "use_weather_location"}, {"false"}},
+    }};
+    const SettingVisibility& manualLocationControlsVisible =
+        weatherLocationConfigured ? locationWeatherLocationOff : SettingVisibility{};
     {
       auto e = makeEntry(
-          "services", "calendar", tr("settings.schema.services.calendar-refresh-interval.label"),
-          tr("settings.schema.services.calendar-refresh-interval.description"), {"calendar", "refresh_minutes"},
-          SliderSetting{cfg.calendar.refreshMinutes, 5.0f, 240.0f, 5.0f, true}, "calendar sync"
+          "services", "location", tr("settings.schema.services.sunset.label"),
+          tr("settings.schema.services.sunset.description"), {"location", "sunset"},
+          TextSetting{.value = cfg.location.sunset, .placeholder = "20:30", .browseFileExtensions = {}},
+          "time schedule sunset"
       );
-      e.visibleWhen = calendarOn;
+      e.visibleWhen = manualLocationControlsVisible;
+      entries.push_back(std::move(e));
+    }
+    {
+      auto e = makeEntry(
+          "services", "location", tr("settings.schema.services.sunrise.label"),
+          tr("settings.schema.services.sunrise.description"), {"location", "sunrise"},
+          TextSetting{.value = cfg.location.sunrise, .placeholder = "07:30", .browseFileExtensions = {}},
+          "time schedule sunrise"
+      );
+      e.visibleWhen = manualLocationControlsVisible;
+      entries.push_back(std::move(e));
+    }
+    {
+      auto e = makeEntry(
+          "services", "location", tr("settings.schema.services.latitude.label"),
+          tr("settings.schema.services.latitude.description"), {"location", "latitude"},
+          OptionalNumberSetting{cfg.location.latitude, -90.0, 90.0, "52.5200"}, "coordinate location sunrise sunset",
+          true
+      );
+      e.visibleWhen = manualLocationControlsVisible;
+      entries.push_back(std::move(e));
+    }
+    {
+      auto e = makeEntry(
+          "services", "location", tr("settings.schema.services.longitude.label"),
+          tr("settings.schema.services.longitude.description"), {"location", "longitude"},
+          OptionalNumberSetting{cfg.location.longitude, -180.0, 180.0, "13.4050"}, "coordinate location sunrise sunset",
+          true
+      );
+      e.visibleWhen = manualLocationControlsVisible;
       entries.push_back(std::move(e));
     }
 
-    entries.push_back(makeEntry(
-        "services", "audio", tr("settings.schema.services.audio-overdrive.label"),
-        tr("settings.schema.services.audio-overdrive.description"), {"audio", "enable_overdrive"},
-        ToggleSetting{cfg.audio.enableOverdrive}, "volume"
-    ));
-    entries.push_back(makeEntry(
-        "services", "audio", tr("settings.schema.services.shell-sounds.label"),
-        tr("settings.schema.services.shell-sounds.description"), {"audio", "enable_sounds"},
-        ToggleSetting{cfg.audio.enableSounds}, "sound"
-    ));
-    entries.push_back(makeEntry(
-        "services", "audio", tr("settings.schema.services.sound-volume.label"),
-        tr("settings.schema.services.sound-volume.description"), {"audio", "sound_volume"},
-        SliderSetting{cfg.audio.soundVolume, 0.0f, 1.0f, 0.01f, false}, "sound"
-    ));
-    entries.push_back(makeEntry(
-        "services", "audio", tr("settings.schema.services.volume-change-sound.label"),
-        tr("settings.schema.services.volume-change-sound.description"), {"audio", "volume_change_sound"},
-        TextSetting{
-            .value = cfg.audio.volumeChangeSound,
-            .placeholder = tr("settings.schema.services.volume-change-sound.placeholder"),
-            .browseMode = TextSettingBrowseMode::OpenFile,
-            .browseFileExtensions = {".wav"}
-        },
-        "sound path file", true
-    ));
-    entries.push_back(makeEntry(
-        "services", "audio", tr("settings.schema.services.notification-sound.label"),
-        tr("settings.schema.services.notification-sound.description"), {"audio", "notification_sound"},
-        TextSetting{
-            .value = cfg.audio.notificationSound,
-            .placeholder = tr("settings.schema.services.notification-sound.placeholder"),
-            .browseMode = TextSettingBrowseMode::OpenFile,
-            .browseFileExtensions = {".wav"}
-        },
-        "sound path file", true
-    ));
-    entries.push_back(makeEntry(
-        "services", "brightness", tr("settings.schema.services.ddcutil.label"),
-        env.ddcutilAvailable ? tr("settings.schema.services.ddcutil.description")
-                             : tr("settings.schema.services.ddcutil.requires-ddcutil"),
-        {"brightness", "enable_ddcutil"},
-        ToggleSetting{.checked = cfg.brightness.enableDdcutil, .enabled = env.ddcutilAvailable}, "monitor ddcutil"
-    ));
-    entries.push_back(makeEntry(
-        "services", "media", tr("settings.schema.services.mpris-blacklist.label"),
-        tr("settings.schema.services.mpris-blacklist.description"), {"shell", "mpris", "blacklist"},
-        ListSetting{.items = cfg.shell.mpris.blacklist}, "mpris media player dbus session blacklist"
-    ));
     if (!env.gammaControlAvailable) {
       entries.push_back(makeEntry(
           "services", "night-light", tr("settings.schema.services.night-light.label"),
@@ -1531,66 +1520,6 @@ namespace settings {
             ToggleSetting{cfg.nightlight.force}, "nightlight"
         );
         e.visibleWhen = nightLightOn;
-        entries.push_back(std::move(e));
-      }
-      const bool weatherLocationConfigured =
-          cfg.weather.enabled && (cfg.weather.autoLocate || !cfg.weather.address.empty());
-      const std::string weatherLocationSubtitle = weatherLocationConfigured
-          ? tr("settings.schema.services.use-weather-location.description")
-          : tr("settings.schema.services.use-weather-location.requires-weather-location");
-      {
-        auto e = makeEntry(
-            "services", "night-light", tr("settings.schema.services.use-weather-location.label"),
-            weatherLocationSubtitle, {"nightlight", "use_weather_location"},
-            ToggleSetting{cfg.nightlight.useWeatherLocation}, "location"
-        );
-        e.visibleWhen = nightLightOn;
-        entries.push_back(std::move(e));
-      }
-      const SettingVisibility nightLightOnWeatherLocationOff{std::vector<SettingVisibilityCondition>{
-          {{"nightlight", "enabled"}, {"true"}},
-          {{"nightlight", "use_weather_location"}, {"false"}},
-      }};
-      const SettingVisibility& manualNightLightControlsVisible =
-          weatherLocationConfigured ? nightLightOnWeatherLocationOff : nightLightOn;
-      {
-        auto e = makeEntry(
-            "services", "night-light", tr("settings.schema.services.night-light-start-time.label"),
-            tr("settings.schema.services.night-light-start-time.description"), {"nightlight", "start_time"},
-            TextSetting{.value = cfg.nightlight.startTime, .placeholder = "20:30", .browseFileExtensions = {}},
-            "time schedule sunset"
-        );
-        e.visibleWhen = manualNightLightControlsVisible;
-        entries.push_back(std::move(e));
-      }
-      {
-        auto e = makeEntry(
-            "services", "night-light", tr("settings.schema.services.night-light-stop-time.label"),
-            tr("settings.schema.services.night-light-stop-time.description"), {"nightlight", "stop_time"},
-            TextSetting{.value = cfg.nightlight.stopTime, .placeholder = "07:30", .browseFileExtensions = {}},
-            "time schedule sunrise"
-        );
-        e.visibleWhen = manualNightLightControlsVisible;
-        entries.push_back(std::move(e));
-      }
-      {
-        auto e = makeEntry(
-            "services", "night-light", tr("settings.schema.services.latitude.label"),
-            tr("settings.schema.services.latitude.description"), {"nightlight", "latitude"},
-            OptionalNumberSetting{cfg.nightlight.latitude, -90.0, 90.0, "52.5200"},
-            "coordinate location sunrise sunset", true
-        );
-        e.visibleWhen = manualNightLightControlsVisible;
-        entries.push_back(std::move(e));
-      }
-      {
-        auto e = makeEntry(
-            "services", "night-light", tr("settings.schema.services.longitude.label"),
-            tr("settings.schema.services.longitude.description"), {"nightlight", "longitude"},
-            OptionalNumberSetting{cfg.nightlight.longitude, -180.0, 180.0, "13.4050"},
-            "coordinate location sunrise sunset", true
-        );
-        e.visibleWhen = manualNightLightControlsVisible;
         entries.push_back(std::move(e));
       }
       // Both sliders span the same range; the day > night invariant is enforced at commit time
@@ -1667,6 +1596,72 @@ namespace settings {
         entries.push_back(std::move(e));
       }
     }
+
+    const SettingVisibility calendarOn{{"calendar", "enabled"}, {"true"}};
+    entries.push_back(makeEntry(
+        "services", "calendar", tr("settings.schema.services.calendar.label"),
+        tr("settings.schema.services.calendar.description"), {"calendar", "enabled"},
+        ToggleSetting{cfg.calendar.enabled}, "calendar events caldav google"
+    ));
+    {
+      auto e = makeEntry(
+          "services", "calendar", tr("settings.schema.services.calendar-refresh-interval.label"),
+          tr("settings.schema.services.calendar-refresh-interval.description"), {"calendar", "refresh_minutes"},
+          SliderSetting{cfg.calendar.refreshMinutes, 5.0f, 240.0f, 5.0f, true}, "calendar sync"
+      );
+      e.visibleWhen = calendarOn;
+      entries.push_back(std::move(e));
+    }
+
+    entries.push_back(makeEntry(
+        "services", "audio", tr("settings.schema.services.audio-overdrive.label"),
+        tr("settings.schema.services.audio-overdrive.description"), {"audio", "enable_overdrive"},
+        ToggleSetting{cfg.audio.enableOverdrive}, "volume"
+    ));
+    entries.push_back(makeEntry(
+        "services", "audio", tr("settings.schema.services.shell-sounds.label"),
+        tr("settings.schema.services.shell-sounds.description"), {"audio", "enable_sounds"},
+        ToggleSetting{cfg.audio.enableSounds}, "sound"
+    ));
+    entries.push_back(makeEntry(
+        "services", "audio", tr("settings.schema.services.sound-volume.label"),
+        tr("settings.schema.services.sound-volume.description"), {"audio", "sound_volume"},
+        SliderSetting{cfg.audio.soundVolume, 0.0f, 1.0f, 0.01f, false}, "sound"
+    ));
+    entries.push_back(makeEntry(
+        "services", "audio", tr("settings.schema.services.volume-change-sound.label"),
+        tr("settings.schema.services.volume-change-sound.description"), {"audio", "volume_change_sound"},
+        TextSetting{
+            .value = cfg.audio.volumeChangeSound,
+            .placeholder = tr("settings.schema.services.volume-change-sound.placeholder"),
+            .browseMode = TextSettingBrowseMode::OpenFile,
+            .browseFileExtensions = {".wav"}
+        },
+        "sound path file", true
+    ));
+    entries.push_back(makeEntry(
+        "services", "audio", tr("settings.schema.services.notification-sound.label"),
+        tr("settings.schema.services.notification-sound.description"), {"audio", "notification_sound"},
+        TextSetting{
+            .value = cfg.audio.notificationSound,
+            .placeholder = tr("settings.schema.services.notification-sound.placeholder"),
+            .browseMode = TextSettingBrowseMode::OpenFile,
+            .browseFileExtensions = {".wav"}
+        },
+        "sound path file", true
+    ));
+    entries.push_back(makeEntry(
+        "services", "brightness", tr("settings.schema.services.ddcutil.label"),
+        env.ddcutilAvailable ? tr("settings.schema.services.ddcutil.description")
+                             : tr("settings.schema.services.ddcutil.requires-ddcutil"),
+        {"brightness", "enable_ddcutil"},
+        ToggleSetting{.checked = cfg.brightness.enableDdcutil, .enabled = env.ddcutilAvailable}, "monitor ddcutil"
+    ));
+    entries.push_back(makeEntry(
+        "services", "media", tr("settings.schema.services.mpris-blacklist.label"),
+        tr("settings.schema.services.mpris-blacklist.description"), {"shell", "mpris", "blacklist"},
+        ListSetting{.items = cfg.shell.mpris.blacklist}, "mpris media player dbus session blacklist"
+    ));
 
     // Idle
     entries.push_back(makeEntry(
