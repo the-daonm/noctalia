@@ -246,7 +246,7 @@ namespace {
 } // namespace
 
 #ifdef NOCTALIA_USE_JEMALLOC
-const char* malloc_conf = "narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:5000,tcache_max:4096";
+const char* malloc_conf = "narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:5000,lg_tcache_max:12";
 #endif
 
 int main(int argc, char* argv[]) {
