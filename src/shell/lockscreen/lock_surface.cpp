@@ -696,10 +696,9 @@ void LockSurface::onGpuResourcesInvalidated() {
     if (m_textureCache->shared()) {
       m_wallpaperTexture = m_textureCache->peek(m_wallpaperPath);
     } else if (renderContext() != nullptr) {
-      renderContext()->backend().makeCurrentNoSurface();
-      renderContext()->textureManager().unload(m_wallpaperTexture);
+      renderContext()->backend().textureManager().unload(m_wallpaperTexture);
       if (!m_wallpaperPath.empty()) {
-        m_wallpaperTexture = renderContext()->textureManager().loadFromFile(m_wallpaperPath, 0, true);
+        m_wallpaperTexture = renderContext()->backend().textureManager().loadFromFile(m_wallpaperPath, 0, true);
       }
     }
   }

@@ -1785,7 +1785,7 @@ void Application::onGraphicsReset(RenderGraphicsResetStatus status) {
   (void)status;
   m_sharedTextureCache.reloadResidentTextures();
   m_asyncTextureCache.reloadResidentTextures();
-  m_thumbnailService.invalidateGpuResources(m_renderContext.textureManager());
+  m_thumbnailService.invalidateGpuResources(m_renderContext.backend().textureManager());
   m_wallpaper.onGpuResourcesInvalidated();
   m_backdrop.onGpuResourcesInvalidated();
   m_lockScreen.onGpuResourcesInvalidated();

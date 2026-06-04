@@ -211,22 +211,20 @@ void Wallpaper::onGpuResourcesInvalidated() {
       if (m_textureCache != nullptr && m_textureCache->shared()) {
         inst->currentTexture = m_textureCache->peek(inst->currentPath);
       } else if (m_renderContext != nullptr) {
-        m_renderContext->backend().makeCurrentNoSurface();
         if (inst->currentTexture.id != 0) {
-          m_renderContext->textureManager().unload(inst->currentTexture);
+          m_renderContext->backend().textureManager().unload(inst->currentTexture);
         }
-        inst->currentTexture = m_renderContext->textureManager().loadFromFile(inst->currentPath, 0, true);
+        inst->currentTexture = m_renderContext->backend().textureManager().loadFromFile(inst->currentPath, 0, true);
       }
     }
     if (inst->nextSourceKind == WallpaperSourceKind::Image && !inst->pendingPath.empty()) {
       if (m_textureCache != nullptr && m_textureCache->shared()) {
         inst->nextTexture = m_textureCache->peek(inst->pendingPath);
       } else if (m_renderContext != nullptr) {
-        m_renderContext->backend().makeCurrentNoSurface();
         if (inst->nextTexture.id != 0) {
-          m_renderContext->textureManager().unload(inst->nextTexture);
+          m_renderContext->backend().textureManager().unload(inst->nextTexture);
         }
-        inst->nextTexture = m_renderContext->textureManager().loadFromFile(inst->pendingPath, 0, true);
+        inst->nextTexture = m_renderContext->backend().textureManager().loadFromFile(inst->pendingPath, 0, true);
       }
     }
     updateRendererState(*inst);

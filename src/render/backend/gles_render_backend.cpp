@@ -330,7 +330,14 @@ void GlesRenderBackend::invalidateGpuResources() {
   if (m_display == EGL_NO_DISPLAY || m_context == EGL_NO_CONTEXT) {
     return;
   }
-  makeCurrentNoSurface();
+  if (eglGetCurrentDisplay() != m_display || eglGetCurrentContext() != m_context) {
+    try {
+      makeCurrentNoSurface();
+    } catch (const std::exception& e) {
+      kLog.warn("skipping GPU resource invalidation: {}", e.what());
+      return;
+    }
+  }
   destroyGpuObjects();
 }
 
