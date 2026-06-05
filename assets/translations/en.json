@@ -747,9 +747,9 @@
       }
     },
     "session-actions": {
-      "icon-label": "Icon",
+      "glyph-label": "Glyph",
       "kind-section-label": "Behavior",
-      "glyph-picker-title": "Action icon",
+      "glyph-picker-title": "Action glyph",
       "clear-glyph": "Clear",
       "command-label": "Shell command",
       "command-placeholder": "Optional bash command, leave empty for built-in behavior",
@@ -2719,8 +2719,8 @@
         "title": "Color"
       },
       "glyph-picker": {
-        "title": "Pick an Icon",
-        "search-placeholder": "Search icons…",
+        "title": "Pick a Glyph",
+        "search-placeholder": "Search glyphs…",
         "all-categories": "All"
       }
     },
