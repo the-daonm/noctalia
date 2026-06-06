@@ -112,9 +112,7 @@ namespace {
       endTp = event.end - std::chrono::hours{24};
     }
     int endKey = localDateKey(endTp);
-    if (endKey < startKey) {
-      endKey = startKey;
-    }
+    endKey = std::max(endKey, startKey);
     return {startKey, endKey};
   }
 

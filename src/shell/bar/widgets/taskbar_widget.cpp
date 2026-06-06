@@ -1658,7 +1658,7 @@ void TaskbarWidget::updateModels() {
           std::remove_if(
               nextTasks.begin(), nextTasks.end(),
               [&activeKeys](const TaskModel& t) {
-                return !t.workspaceKey.empty() && activeKeys.find(t.workspaceKey) == activeKeys.end();
+                return !t.workspaceKey.empty() && !activeKeys.contains(t.workspaceKey);
               }
           ),
           nextTasks.end()

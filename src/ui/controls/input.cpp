@@ -965,7 +965,7 @@ void Input::doLayout(Renderer& renderer) {
 
   std::size_t charCount = 0;
   if (showPasswordGlyphs) {
-    charCount = m_stopByte.size() > 0 ? m_stopByte.size() - 1 : 0;
+    charCount = !m_stopByte.empty() ? m_stopByte.size() - 1 : 0;
   }
   float passwordGlyphSize = 0.0f;
   const float passwordCellSize = showPasswordGlyphs ? std::round(m_fontSize * kPasswordGlyphScale) : 0.0f;

@@ -1,0 +1,6 @@
+Checks: >-
+  -clang-diagnostic-*,
+  readability-container-contains,
+  readability-container-data-pointer,
+  readability-container-size-empty,
+  readability-use-std-min-max,

@@ -847,7 +847,7 @@ std::size_t ConfigService::overridePreserveDepthForPath(const std::vector<std::s
   if (path.size() > 4 && path[0] == "bar" && path[2] == "monitor" && isOverrideOnlyMonitorOverride(path[1], path[3])) {
     return 4;
   }
-  if (path.size() > 4 && path[0] == "wallpaper" && path[2] == "monitor" && path[3].size() > 0) {
+  if (path.size() > 4 && path[0] == "wallpaper" && path[2] == "monitor" && !path[3].empty()) {
     return 4;
   }
   if (path.size() > 2 && path[0] == "bar" && isOverrideOnlyBar(path[1])) {
