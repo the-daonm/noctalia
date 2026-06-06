@@ -1,5 +1,6 @@
 {
   lib,
+  config,
   stdenv,
   meson,
   ninja,
@@ -27,6 +28,8 @@
   libqalculate,
   libxml2,
   jemalloc,
+  autoAddDriverRunpath,
+  cudaSupport ? config.cudaSupport,
 }:
 let
   inherit (builtins) head match readFile;
@@ -49,7 +52,8 @@ stdenv.mkDerivation {
     pkg-config
     wayland-scanner
     jemalloc
-  ];
+  ]
+  ++ lib.optional cudaSupport autoAddDriverRunpath;
 
   buildInputs = [
     wayland
