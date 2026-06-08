@@ -102,13 +102,15 @@ namespace settings {
 
     Flex* nameBlockRaw = nullptr;
     auto nameBlock = ui::column(
-        {.out = &nameBlockRaw, .align = FlexAlign::Stretch, .gap = Style::spaceXs * scale},
+        {.out = &nameBlockRaw,
+         .align = FlexAlign::Stretch,
+         .gap = Style::spaceXs * scale,
+         .visible = showCustomCommands},
         makeLabel(
             i18n::tr("settings.idle.behavior.name-label"), Style::fontSizeCaption * scale,
             colorSpecFromRole(ColorRole::OnSurfaceVariant), FontWeight::Normal
         )
     );
-    nameBlockRaw->setVisible(showCustomCommands);
 
     auto kindBlock = ui::column(
         {.align = FlexAlign::Stretch, .gap = Style::spaceXs * scale},
