@@ -306,25 +306,23 @@ std::unique_ptr<Flex> SystemTab::create() {
     m_diskLabels.reserve(m_diskMountPoints.size());
     for (std::size_t i = 0; i < m_diskMountPoints.size(); ++i) {
       Label* lineLabel = nullptr;
-      resourcesCard
-          ->addChild(
-              ui::row(
-                  {.align = FlexAlign::Center, .gap = Style::spaceXs * sc},
-                  ui::glyph({
-                      .glyph = "storage",
-                      .glyphSize = Style::fontSizeMini * sc,
-                      .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-                  }),
-                  ui::label({
-                      .out = &lineLabel,
-                      .fontSize = Style::fontSizeMini * sc,
-                      .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-                      .maxLines = 1,
-                      .flexGrow = 1.0f,
-                  })
-              )
+      resourcesCard->addChild(
+          ui::row(
+              {.align = FlexAlign::Center, .gap = Style::spaceXs * sc},
+              ui::glyph({
+                  .glyph = "storage",
+                  .glyphSize = Style::fontSizeMini * sc,
+                  .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+              }),
+              ui::label({
+                  .out = &lineLabel,
+                  .fontSize = Style::fontSizeMini * sc,
+                  .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+                  .maxLines = 1,
+                  .flexGrow = 1.0f,
+              })
           )
-          ->setFlexGrow(2.0f);
+      );
       m_diskLabels.push_back(lineLabel);
     }
 
