@@ -1008,6 +1008,16 @@ void PanelManager::togglePanel(const std::string& panelId) {
   openPanel(panelId, PanelOpenRequest{.output = output});
 }
 
+void PanelManager::clearClipboardHistory() {
+  const auto it = m_panels.find("clipboard");
+  if (it == m_panels.end()) {
+    return;
+  }
+  if (auto* clipboardPanel = dynamic_cast<ClipboardPanel*>(it->second.get())) {
+    clipboardPanel->clearHistoryFromIpc();
+  }
+}
+
 bool PanelManager::onPointerEvent(const PointerEvent& event) {
   if (!isOpen() || m_inTransition) {
     return false;
@@ -1974,12 +1984,6 @@ void PanelManager::registerIpc(IpcService& ipc) {
         if (!m_panels.contains(panelId)) {
           return unknownPanelError(panelId);
         }
-        if (panelId == "clipboard" && context == "clear") {
-          if (auto* clipboardPanel = dynamic_cast<ClipboardPanel*>(m_panels.at(panelId).get())) {
-            clipboardPanel->clearHistoryFromIpc();
-          }
-          return "ok\n";
-        }
         if (context.empty()) {
           togglePanel(panelId);
         } else {
@@ -1988,7 +1992,7 @@ void PanelManager::registerIpc(IpcService& ipc) {
         return "ok\n";
       },
       "panel-toggle <id> [context]",
-      "Toggle a panel by id, optionally with context (e.g. launcher /emo, control-center audio, clipboard clear)"
+      "Toggle a panel by id, optionally with context (e.g. launcher /emo, control-center audio)"
   );
 
   ipc.registerHandler(

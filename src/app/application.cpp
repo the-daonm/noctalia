@@ -1746,6 +1746,15 @@ void Application::initIpc() {
   );
 
   m_ipcService.registerHandler(
+      "clipboard-clear",
+      [this](const std::string&) -> std::string {
+        m_panelManager.clearClipboardHistory();
+        return "ok\n";
+      },
+      "clipboard-clear", "Clear clipboard history"
+  );
+
+  m_ipcService.registerHandler(
       "dpms-on",
       [this](const std::string&) -> std::string {
         if (!m_compositorPlatform.setOutputPower(true)) {
