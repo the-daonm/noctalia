@@ -1,5 +1,6 @@
 #include "config/config_types.h"
 #include "i18n/i18n.h"
+#include "shell/session/session_action_meta.h"
 #include "shell/settings/settings_content.h"
 #include "shell/settings/settings_content_common.h"
 #include "ui/builders.h"
@@ -31,28 +32,6 @@ namespace settings {
         options.push_back(SelectOption{std::string(variant.key), i18n::tr(variant.labelKey), {}});
       }
       return options;
-    }
-
-    const char* sessionActionDefaultGlyphName(std::string_view action) {
-      if (action == "lock") {
-        return "lock";
-      }
-      if (action == "logout") {
-        return "logout";
-      }
-      if (action == "suspend") {
-        return "suspend";
-      }
-      if (action == "lock_and_suspend") {
-        return "lock";
-      }
-      if (action == "reboot") {
-        return "reboot";
-      }
-      if (action == "shutdown") {
-        return "shutdown";
-      }
-      return "terminal";
     }
 
   } // namespace
@@ -92,13 +71,13 @@ namespace settings {
       if (row.glyph.has_value() && !row.glyph->empty()) {
         return *row.glyph;
       }
-      return std::string(sessionActionDefaultGlyphName(row.action));
+      return std::string(session_action::defaultGlyph(row.action));
     }();
     const auto previewGlyphForRow = [&row]() {
       if (row.glyph.has_value() && !row.glyph->empty()) {
         return *row.glyph;
       }
-      return std::string(sessionActionDefaultGlyphName(row.action));
+      return std::string(session_action::defaultGlyph(row.action));
     };
     const auto hasCustomGlyph = [&row]() { return row.glyph.has_value() && !row.glyph->empty(); };
 

@@ -35,7 +35,7 @@ namespace settings {
     System,
     Services,
     Location,
-    Idle,
+    Power,
     Hooks,
     Niri,
     Bar,

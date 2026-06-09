@@ -545,6 +545,7 @@ _noctalia_sources = files(
   'src/wayland/hyprland/focus_grab_service.cpp',
   'src/shell/panel/panel_manager.cpp',
   'src/shell/polkit/polkit_panel.cpp',
+  'src/shell/session/session_action_meta.cpp',
   'src/shell/session/session_action_runner.cpp',
   'src/shell/session/session_ipc.cpp',
   'src/shell/session/session_panel.cpp',

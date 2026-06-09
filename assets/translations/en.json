@@ -856,6 +856,7 @@
         "general": "General",
         "grouping": "Grouping",
         "home": "Home",
+        "idle": "Idle",
         "interface": "Interface",
         "keybinds": "Keybinds",
         "kinds": "Kinds",
@@ -902,13 +903,13 @@
         "desktop": "Desktop",
         "dock": "Dock",
         "hooks": "Hooks",
-        "idle": "Idle",
         "location": "Location",
         "niri": "Niri",
         "notifications": "Notifications",
         "osd": "OSD",
         "panels": "Panels",
         "popups": "Popups",
+        "power": "Power",
         "security": "Security",
         "services": "Services",
         "shell": "Shell",
@@ -1659,16 +1660,18 @@
           "description": "Choose whether the wallpaper picker attaches to the bar, floats near it, or opens centered",
           "label": "Placement"
         },
-        "session-actions": {
-          "description": "Power menu entries, order, custom commands, and icons",
-          "label": "Entries"
-        },
         "shadow": {
           "description": "Cast the global surface shadow from panel surfaces"
         },
         "transparency-mode": {
           "description": "Panel glass style, including floating/centered panel opacity and card translucency",
           "label": "Transparency"
+        }
+      },
+      "power": {
+        "session-actions": {
+          "description": "Power menu entries, order, custom commands, and icons",
+          "label": "Entries"
         }
       },
       "services": {

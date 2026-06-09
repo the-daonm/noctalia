@@ -900,7 +900,6 @@
         "desktop": "Desktop",
         "dock": "Dock",
         "hooks": "Haken",
-        "idle": "Inaktiv",
         "location": "Standort",
         "niri": "Niri",
         "notifications": "Benachrichtigungen",
@@ -1656,10 +1655,6 @@
         "placement-wallpaper": {
           "description": "Wähle, ob die Hintergrundbildauswahl an der Leiste angeheftet ist, in ihrer Nähe schwebt oder zentriert geöffnet wird",
           "label": "Platzierung"
-        },
-        "session-actions": {
-          "description": "Sitzungsmenü-Einträge, Reihenfolge, benutzerdefinierte Befehle und Symbole",
-          "label": "Einträge"
         },
         "shadow": {
           "description": "Den globalen Oberflächenschatten von den Oberflächen der Einblendungen werfen"
