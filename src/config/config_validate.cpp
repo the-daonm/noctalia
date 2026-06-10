@@ -263,15 +263,15 @@ namespace noctalia::config {
         const std::string base = "widget." + nameStr;
         WidgetConfig wc = readBarWidgetConfig(nameStr, *tbl, resolvedConfig);
         const std::string type = wc.type;
-        if (!settings::isBuiltInWidgetType(type)) {
+        if (!settings::isBuiltInWidgetType(type) && !settings::isPluginWidgetType(type)) {
           diag.warn(base, "unrecognized widget type \"" + type + "\"");
           resolvedConfig.widgets[nameStr] = std::move(wc);
           continue;
         }
         const auto fields = settings::widgetSettingSchema(type, &wc);
-        // Scripted widgets resolve settings from a Lua manifest that may be absent
-        // here, so don't flag unknown keys for them.
-        validateSettingsMap(*tbl, fields, base, /*flagUnknown=*/type != "scripted", diag, /*ignoreKeys=*/{"type"});
+        // Plugin widgets resolve their settings from a static plugin.toml manifest, so
+        // unknown keys are flagged like any other widget.
+        validateSettingsMap(*tbl, fields, base, /*flagUnknown=*/true, diag, /*ignoreKeys=*/{"type"});
         resolvedConfig.widgets[nameStr] = std::move(wc);
       }
     }
@@ -489,6 +489,7 @@ namespace noctalia::config {
     checkSection(merged, "keybinds", schema::keybindsSchema(), diag);
     checkSection(merged, "dock", schema::dockSchema(), diag);
     checkSection(merged, "control_center", schema::controlCenterSchema(), diag);
+    checkSection(merged, "plugins", schema::pluginsSchema(), diag);
     checkSection(merged, "hooks", schema::hooksSchema(), diag);
 
     validateBars(merged, diag);
@@ -522,6 +523,7 @@ namespace noctalia::config {
         "lockscreen_widgets",
         "widget",
         "control_center",
+        "plugins",
         "hooks",
     };
     for (const auto& [key, node] : merged) {

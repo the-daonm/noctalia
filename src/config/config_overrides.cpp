@@ -310,7 +310,8 @@ namespace {
         && a.idle == b.idle
         && a.hooks == b.hooks
         && a.theme == b.theme
-        && a.controlCenter == b.controlCenter;
+        && a.controlCenter == b.controlCenter
+        && a.plugins == b.plugins;
   }
 
   toml::table* ensureTable(toml::table& parent, std::string_view key) {
@@ -626,7 +627,122 @@ ConfigChangeSet computeConfigChangeSet(const Config& prev, const Config& next) {
       .hooks = !(prev.hooks == next.hooks),
       .theme = !(prev.theme == next.theme),
       .controlCenter = !(prev.controlCenter == next.controlCenter),
+      .plugins = !(prev.plugins == next.plugins),
   };
+}
+
+void ConfigService::setPluginEnabled(std::string_view pluginId, bool enabled) {
+  if (m_overridesPath.empty()) {
+    return;
+  }
+
+  auto* pluginsTbl = ensureTable(m_overridesTable, "plugins");
+  auto* arr = pluginsTbl->get_as<toml::array>("enabled");
+  if (arr == nullptr) {
+    auto [it, _] = pluginsTbl->insert_or_assign("enabled", toml::array{});
+    arr = it->second.as_array();
+  }
+
+  const std::string id(pluginId);
+  auto pos = std::find_if(arr->begin(), arr->end(), [&id](const toml::node& node) {
+    const auto value = node.value<std::string>();
+    return value && *value == id;
+  });
+
+  if (enabled) {
+    if (pos != arr->end()) {
+      return; // already enabled
+    }
+    arr->push_back(id);
+  } else {
+    if (pos == arr->end()) {
+      return; // already disabled
+    }
+    arr->erase(pos);
+  }
+
+  if (!writeOverridesToFile()) {
+    kLog.warn("failed to write {}", m_overridesPath);
+    return;
+  }
+
+  m_ownOverridesWritePending = true;
+  loadAll();
+  fireReloadCallbacks();
+}
+
+void ConfigService::addPluginSource(const PluginSourceConfig& source) {
+  if (m_overridesPath.empty() || source.name.empty()) {
+    return;
+  }
+
+  auto* pluginsTbl = ensureTable(m_overridesTable, "plugins");
+  auto* arr = pluginsTbl->get_as<toml::array>("source");
+  if (arr == nullptr) {
+    auto [it, _] = pluginsTbl->insert_or_assign("source", toml::array{});
+    arr = it->second.as_array();
+  }
+
+  // A source name is an identity, not a duplicate key — replace any existing entry.
+  for (auto it = arr->begin(); it != arr->end();) {
+    const auto* tbl = it->as_table();
+    const auto name = tbl != nullptr ? (*tbl)["name"].value<std::string>() : std::nullopt;
+    it = (name && *name == source.name) ? arr->erase(it) : it + 1;
+  }
+
+  toml::table entry;
+  entry.insert_or_assign("name", source.name);
+  entry.insert_or_assign("kind", std::string(enumToKey(kPluginSourceKinds, source.kind)));
+  entry.insert_or_assign("location", source.location);
+  if (source.autoUpdate) {
+    entry.insert_or_assign("auto_update", true);
+  }
+  arr->push_back(std::move(entry));
+
+  if (!writeOverridesToFile()) {
+    kLog.warn("failed to write {}", m_overridesPath);
+    return;
+  }
+  m_ownOverridesWritePending = true;
+  loadAll();
+  fireReloadCallbacks();
+}
+
+void ConfigService::removePluginSource(std::string_view name) {
+  if (m_overridesPath.empty()) {
+    return;
+  }
+  auto* pluginsTbl = m_overridesTable.get_as<toml::table>("plugins");
+  if (pluginsTbl == nullptr) {
+    return;
+  }
+  auto* arr = pluginsTbl->get_as<toml::array>("source");
+  if (arr == nullptr) {
+    return;
+  }
+
+  bool removed = false;
+  for (auto it = arr->begin(); it != arr->end();) {
+    const auto* tbl = it->as_table();
+    const auto entryName = tbl != nullptr ? (*tbl)["name"].value<std::string>() : std::nullopt;
+    if (entryName && *entryName == name) {
+      it = arr->erase(it);
+      removed = true;
+    } else {
+      ++it;
+    }
+  }
+  if (!removed) {
+    return;
+  }
+
+  if (!writeOverridesToFile()) {
+    kLog.warn("failed to write {}", m_overridesPath);
+    return;
+  }
+  m_ownOverridesWritePending = true;
+  loadAll();
+  fireReloadCallbacks();
 }
 
 void ConfigService::setThemeMode(ThemeMode mode) {

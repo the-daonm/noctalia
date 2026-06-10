@@ -93,6 +93,15 @@ public:
       const std::vector<std::string>& allConnectors
   );
 
+  // Add/remove a plugin id ("author/plugin") in [plugins].enabled. Persists to
+  // settings.toml and triggers the reload pipeline. No-op if already in that state.
+  void setPluginEnabled(std::string_view pluginId, bool enabled);
+
+  // Add (replacing any same-named entry) or remove a plugin source in
+  // [[plugins.source]], then trigger the reload pipeline.
+  void addPluginSource(const PluginSourceConfig& source);
+  void removePluginSource(std::string_view name);
+
   // Persist a theme-mode override to settings.toml and trigger the reload pipeline.
   void setThemeMode(ThemeMode mode);
   // Persist `[theme].source` and the palette field for that source, then reload.

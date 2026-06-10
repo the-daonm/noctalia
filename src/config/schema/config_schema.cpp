@@ -333,6 +333,29 @@ namespace noctalia::config::schema {
   }
 
   namespace {
+    const Schema<PluginSourceConfig>& pluginSourceSchema() {
+      static const Schema<PluginSourceConfig> s = {
+          field(&PluginSourceConfig::name, "name"),
+          enumField(&PluginSourceConfig::kind, "kind", kPluginSourceKinds),
+          field(&PluginSourceConfig::location, "location"),
+          field(&PluginSourceConfig::autoUpdate, "auto_update"),
+      };
+      return s;
+    }
+  } // namespace
+
+  const Schema<PluginsConfig>& pluginsSchema() {
+    static const Schema<PluginsConfig> s = {
+        arrayOf<PluginsConfig, PluginSourceConfig>(
+            &PluginsConfig::sources, "source", pluginSourceSchema(),
+            [](const PluginSourceConfig& src) { return !src.name.empty(); }
+        ),
+        field(&PluginsConfig::enabled, "enabled"),
+    };
+    return s;
+  }
+
+  namespace {
     // TOML key is "name" but the field is displayName.
     const Schema<CalendarConfig::Account>& calendarAccountSchema() {
       static const Schema<CalendarConfig::Account> s = {
