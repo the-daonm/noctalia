@@ -1292,6 +1292,15 @@ void Application::initUi() {
       m_lockScreen.onPointerEvent(event);
       return;
     }
+    if (m_colorPickerDialogPopup.onPointerEvent(event)) {
+      return;
+    }
+    if (m_glyphPickerDialogPopup.onPointerEvent(event)) {
+      return;
+    }
+    if (m_fileDialogPopup.onPointerEvent(event)) {
+      return;
+    }
     if (m_lockscreenWidgetsController.onPointerEvent(event)) {
       return;
     }
@@ -1304,14 +1313,9 @@ void Application::initUi() {
     if (m_screenshotService.onPointerEvent(event)) {
       return;
     }
-    if (m_trayMenu.onPointerEvent(event))
+    if (m_trayMenu.onPointerEvent(event)) {
       return;
-    if (m_colorPickerDialogPopup.onPointerEvent(event))
-      return;
-    if (m_glyphPickerDialogPopup.onPointerEvent(event))
-      return;
-    if (m_fileDialogPopup.onPointerEvent(event))
-      return;
+    }
     if (m_settingsWindow.onPointerEvent(event))
       return;
     if (m_bar.onPointerEvent(event))
@@ -1330,10 +1334,6 @@ void Application::initUi() {
       m_lockScreen.onKeyboardEvent(event);
       return;
     }
-    if (m_lockscreenWidgetsController.isEditing()) {
-      m_lockscreenWidgetsController.onKeyboardEvent(event);
-      return;
-    }
     if (m_colorPickerDialogPopup.isOpen()) {
       m_colorPickerDialogPopup.onKeyboardEvent(event);
       return;
@@ -1344,6 +1344,10 @@ void Application::initUi() {
     }
     if (m_fileDialogPopup.isOpen()) {
       m_fileDialogPopup.onKeyboardEvent(event);
+      return;
+    }
+    if (m_lockscreenWidgetsController.isEditing()) {
+      m_lockscreenWidgetsController.onKeyboardEvent(event);
       return;
     }
     if (m_desktopWidgetsController.isEditing()) {
@@ -1612,6 +1616,21 @@ void Application::initUi() {
   m_configService.addReloadCallback([this]() { m_panelManager.onConfigReloaded(); });
   m_configService.addReloadCallback([this]() { m_screenCorners.onConfigReload(); });
 
+  m_layerPopupHosts.registerHost(
+      [this](wl_surface* surface) {
+        if (auto context = m_lockscreenWidgetsController.popupParentContextForSurface(surface); context.has_value()) {
+          return context;
+        }
+        return m_desktopWidgetsController.popupParentContextForSurface(surface);
+      },
+      {}, {},
+      [this]() {
+        if (auto context = m_lockscreenWidgetsController.fallbackPopupParentContext(); context.has_value()) {
+          return context;
+        }
+        return m_desktopWidgetsController.fallbackPopupParentContext();
+      }
+  );
   m_layerPopupHosts.registerHost(
       [this](wl_surface* surface) { return m_panelManager.popupParentContextForSurface(surface); },
       [this](wl_surface* surface) { m_panelManager.beginAttachedPopup(surface); },

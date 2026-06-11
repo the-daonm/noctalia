@@ -353,8 +353,69 @@ void BackgroundWidgetsEditor::createSurface(const WaylandOutput& output) {
   m_surfaces.push_back(std::move(overlay));
 }
 
+std::optional<LayerPopupParentContext>
+BackgroundWidgetsEditor::overlayPopupParentContext(const OverlaySurface& surface) const {
+  if (!m_open || surface.surface == nullptr) {
+    return std::nullopt;
+  }
+
+  zwlr_layer_surface_v1* layerSurface = surface.surface->layerSurface();
+  const std::uint32_t width = surface.surface->width();
+  const std::uint32_t height = surface.surface->height();
+  if (layerSurface == nullptr || width == 0 || height == 0) {
+    return std::nullopt;
+  }
+
+  return LayerPopupParentContext{
+      .surface = surface.surface->wlSurface(),
+      .layerSurface = layerSurface,
+      .output = surface.output,
+      .width = width,
+      .height = height,
+  };
+}
+
+std::optional<LayerPopupParentContext>
+BackgroundWidgetsEditor::popupParentContextForSurface(wl_surface* surface) const {
+  if (surface == nullptr) {
+    return std::nullopt;
+  }
+  const OverlaySurface* overlay = findSurface(surface);
+  return overlay != nullptr ? overlayPopupParentContext(*overlay) : std::nullopt;
+}
+
+std::optional<LayerPopupParentContext> BackgroundWidgetsEditor::fallbackPopupParentContext() const {
+  if (!m_open || m_surfaces.empty()) {
+    return std::nullopt;
+  }
+
+  if (m_wayland != nullptr) {
+    if (const OverlaySurface* overlay = findSurface(m_wayland->lastPointerSurface()); overlay != nullptr) {
+      if (auto context = overlayPopupParentContext(*overlay); context.has_value()) {
+        return context;
+      }
+    }
+    if (const OverlaySurface* overlay = findSurface(m_wayland->lastKeyboardSurface()); overlay != nullptr) {
+      if (auto context = overlayPopupParentContext(*overlay); context.has_value()) {
+        return context;
+      }
+    }
+  }
+
+  for (const auto& overlay : m_surfaces) {
+    if (auto context = overlayPopupParentContext(*overlay); context.has_value()) {
+      return context;
+    }
+  }
+  return std::nullopt;
+}
+
 BackgroundWidgetsEditor::OverlaySurface* BackgroundWidgetsEditor::findSurface(wl_surface* surface) {
-  for (auto& overlay : m_surfaces) {
+  return const_cast<OverlaySurface*>(std::as_const(*this).findSurface(surface));
+}
+
+const BackgroundWidgetsEditor::OverlaySurface* BackgroundWidgetsEditor::findSurface(wl_surface* surface) const {
+  for (const auto& overlay : m_surfaces) {
     if (overlay->surface != nullptr && overlay->surface->wlSurface() == surface) {
       return overlay.get();
     }

@@ -286,6 +286,21 @@ void LockscreenWidgetsController::toggleEdit() {
 
 bool LockscreenWidgetsController::isEditing() const noexcept { return m_editor != nullptr && m_editor->isOpen(); }
 
+std::optional<LayerPopupParentContext>
+LockscreenWidgetsController::popupParentContextForSurface(wl_surface* surface) const {
+  if (!isEditing() || m_editor == nullptr) {
+    return std::nullopt;
+  }
+  return m_editor->popupParentContextForSurface(surface);
+}
+
+std::optional<LayerPopupParentContext> LockscreenWidgetsController::fallbackPopupParentContext() const {
+  if (!isEditing() || m_editor == nullptr) {
+    return std::nullopt;
+  }
+  return m_editor->fallbackPopupParentContext();
+}
+
 bool LockscreenWidgetsController::onPointerEvent(const PointerEvent& event) {
   if (isEditing() && m_editor != nullptr) {
     return m_editor->onPointerEvent(event);

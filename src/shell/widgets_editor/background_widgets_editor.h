@@ -8,6 +8,7 @@
 #include "shell/desktop/desktop_widget_settings_registry.h"
 #include "shell/widgets_editor/background_widgets_editor_config.h"
 #include "ui/controls/select_dropdown_popup.h"
+#include "ui/dialogs/layer_popup_host.h"
 #include "wayland/layer_surface.h"
 
 #include <array>
@@ -55,6 +56,8 @@ public:
 
   bool onPointerEvent(const PointerEvent& event);
   void onKeyboardEvent(const KeyboardEvent& event);
+  [[nodiscard]] std::optional<LayerPopupParentContext> popupParentContextForSurface(wl_surface* surface) const;
+  [[nodiscard]] std::optional<LayerPopupParentContext> fallbackPopupParentContext() const;
   void onOutputChange();
   void onSecondTick();
   void requestLayout();
@@ -169,6 +172,8 @@ private:
   void updateDrag();
   void finishDrag();
   [[nodiscard]] OverlaySurface* findSurface(wl_surface* surface);
+  [[nodiscard]] const OverlaySurface* findSurface(wl_surface* surface) const;
+  [[nodiscard]] std::optional<LayerPopupParentContext> overlayPopupParentContext(const OverlaySurface& surface) const;
   [[nodiscard]] OverlaySurface* findSurface(const std::string& outputName);
   [[nodiscard]] OverlaySurface* findSurfaceForWidget(const std::string& widgetId);
   [[nodiscard]] EditorWidgetView* findView(const std::string& id);
