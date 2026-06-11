@@ -144,9 +144,10 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const std::string titleScroll = wc != nullptr ? wc->getString("title_scroll", "none") : std::string("none");
     const std::string displayMode =
         wc != nullptr ? wc->getString("display", "icon_and_text") : std::string("icon_and_text");
+    const bool showEmptyLabel = wc != nullptr ? wc->getBool("show_empty_label", false) : false;
     auto widget = std::make_unique<ActiveWindowWidget>(
         m_configService, m_platform, maxWidth, minWidth, iconSize, parseActiveWindowTitleScrollMode(titleScroll),
-        parseActiveWindowDisplayMode(displayMode)
+        parseActiveWindowDisplayMode(displayMode), showEmptyLabel
     );
     widget->setContentScale(contentScale);
     return widget;

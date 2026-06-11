@@ -616,6 +616,7 @@ namespace settings {
         display.descriptionKey = "settings.widgets.settings.display.active-window-description";
         add(std::move(display));
       }
+      add(boolSpec("show_empty_label", false));
     } else if (type == "audio_visualizer") {
       add(doubleSpec("width", 56.0, 8.0, 400.0, 1.0));
       add(intSpec("bands", 16, 2.0, 128.0, 1.0));
