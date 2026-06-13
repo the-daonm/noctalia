@@ -2878,11 +2878,8 @@
     "panel": {
       "all-monitors": "ALL",
       "color-title": "Wallpaper color",
-      "favorite-palette-label": "Colors",
-      "favorite-theme-label": "Theme",
       "filter-placeholder": "Filter...",
       "flatten": "Flatten",
-      "no-directory-configured": "No directory configured",
       "sort-date-asc": "Sort by date (oldest first)",
       "sort-date-desc": "Sort by date (newest first)",
       "sort-name-asc": "Sort by name (A-Z)",
