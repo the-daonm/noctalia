@@ -260,7 +260,6 @@
       },
       "notification": "Non disturbare",
       "power-profile": "Energia",
-      "screen-recorder": "Registratore",
       "screen-time": "Screen time",
       "session": "Sessione",
       "system": "Sistema",
@@ -969,7 +968,7 @@
       "filter": {
         "add": "Aggiungi filtro",
         "add-title": "Aggiungi filtro notifiche",
-        "allowed-urgencies-label": "Urgenze consentite",
+        "allowed-urgencies-label": "Livelli consentiti",
         "flag": {
           "history": "cronologia",
           "sound": "suono",
@@ -1674,7 +1673,7 @@
       "notifications": {
         "allowed-urgencies": {
           "description": "Mostra solo notifiche relative ai livelli di urgenza selezionati",
-          "label": "Notifiche urgenti consentite"
+          "label": "Livelli consentiti"
         },
         "blacklist": {
           "description": "Nasconde notifiche corrispondenti a (nome app, desktop entry o categoria)",
