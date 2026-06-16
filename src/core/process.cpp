@@ -100,9 +100,7 @@ namespace {
     return argv;
   }
 
-  [[nodiscard]] bool validEnvName(std::string_view name) {
-    return !name.empty() && name.find('=') == std::string_view::npos;
-  }
+  [[nodiscard]] bool validEnvName(std::string_view name) { return !name.empty() && !name.contains('='); }
 
   void applyEnvOverrides(const std::vector<process::EnvOverride>& env) {
     for (const auto& item : env) {

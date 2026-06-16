@@ -1345,7 +1345,7 @@ std::string LuauHost::translate(std::string_view key, const std::unordered_map<s
     return std::string(key);
   }
   const std::string& tmpl = it->second;
-  if (subst.empty() || tmpl.find('{') == std::string::npos) {
+  if (subst.empty() || !tmpl.contains('{')) {
     return tmpl;
   }
   std::string out;

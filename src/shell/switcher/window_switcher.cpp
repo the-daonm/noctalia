@@ -450,7 +450,7 @@ namespace {
   class WindowSwitcherGridAdapter final : public VirtualGridAdapter {
   public:
     WindowSwitcherGridAdapter(float scale, AsyncTextureCache* cache, std::optional<ColorSpec> iconTint)
-        : m_scale(scale), m_cache(cache), m_iconTint(std::move(iconTint)) {}
+        : m_scale(scale), m_cache(cache), m_iconTint(iconTint) {}
 
     void setEntries(const std::vector<WindowSwitcherEntry>* entries) { m_entries = entries; }
     void setRenderer(Renderer* renderer) { m_renderer = renderer; }

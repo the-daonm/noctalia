@@ -184,7 +184,7 @@ void ScreenSaverService::registerLogindIdleMonitor(SystemBus* systemBus) {
 
 void ScreenSaverService::applyLogindBlockInhibited(const std::string& inhibits) {
   const std::string tagged = ":" + inhibits + ":";
-  const bool idleBlocked = tagged.find(":idle:") != std::string::npos;
+  const bool idleBlocked = tagged.contains(":idle:");
   if (idleBlocked && !m_logindIdleInhibited) {
     m_logindIdleInhibited = true;
     onInhibitDelta(1);
