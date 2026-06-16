@@ -1,5 +1,6 @@
 Checks: >-
   -clang-diagnostic-*,
+  modernize-use-std-numbers,
   performance-move-const-arg,
   readability-container-contains,
   readability-container-data-pointer,
