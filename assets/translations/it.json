@@ -1749,7 +1749,7 @@
           "label": "Scorciatoie home"
         },
         "launcher-categories": {
-          "description": "Mostra filtri categoria nel launcher; alterna con Tab mentre il launcher è aperto",
+          "description": "Mostra filtri categoria nel launcher; mostra con F6, poi scorri con F6 e Shift+F6",
           "label": "Mostra categorie"
         },
         "launcher-compact": {

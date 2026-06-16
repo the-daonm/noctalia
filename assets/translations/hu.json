@@ -1676,7 +1676,7 @@
           "label": "Kezdőlap Parancsikonok"
         },
         "launcher-categories": {
-          "description": "Kategóriaszűrők megjelenítése a Launcherben; válts a Tab billentyűvel, amíg a Launcher nyitva van",
+          "description": "Kategóriaszűrők megjelenítése a Launcherben; F6-tal jelenítsd meg, majd F6 és Shift+F6 billentyűvel válts",
           "label": "Kategóriák megjelenítése"
         },
         "launcher-compact": {

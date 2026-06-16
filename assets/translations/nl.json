@@ -1689,7 +1689,7 @@
           "label": "Home-snelkoppelingen"
         },
         "launcher-categories": {
-          "description": "Toon categoriefilters in Launcher; wissel met Tab terwijl Launcher open is",
+          "description": "Toon categoriefilters in Launcher; toon ze met F6 en wissel daarna met F6 en Shift+F6",
           "label": "Categorieën tonen"
         },
         "launcher-compact": {

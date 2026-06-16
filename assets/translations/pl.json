@@ -1646,7 +1646,7 @@
           "label": "Skróty główne"
         },
         "launcher-categories": {
-          "description": "Wyświetl filtry kategorii w launcherze; przełącz klawiszem Tab podczas otwartego launchera",
+          "description": "Wyświetl filtry kategorii w launcherze; pokaż je klawiszem F6, potem przełączaj F6 i Shift+F6",
           "label": "Pokaż kategorie"
         },
         "launcher-compact": {

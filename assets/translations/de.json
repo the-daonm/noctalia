@@ -1702,7 +1702,7 @@
           "label": "Startseiten-Kurzbefehle"
         },
         "launcher-categories": {
-          "description": "Kategoriefilter im Launcher anzeigen; mit Tab umschalten, während der Launcher geöffnet ist",
+          "description": "Kategoriefilter im Launcher anzeigen; mit F6 einblenden, danach mit F6 und Shift+F6 wechseln",
           "label": "Kategorien anzeigen"
         },
         "launcher-compact": {

@@ -1749,7 +1749,7 @@
           "label": "Home Shortcuts"
         },
         "launcher-categories": {
-          "description": "Display category filters in the launcher; toggle with Tab while the launcher is open",
+          "description": "Display category filters in the launcher; reveal with F6, then cycle with F6 and Shift+F6",
           "label": "Show Categories"
         },
         "launcher-compact": {

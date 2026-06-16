@@ -1744,7 +1744,7 @@
           "label": "Raccourcis de l’accueil"
         },
         "launcher-categories": {
-          "description": "Affiche les filtres de catégories dans le lanceur ; bascule via Tab lorsque le lanceur est ouvert",
+          "description": "Affiche les filtres de catégories dans le lanceur ; affichez-les avec F6, puis parcourez-les avec F6 et Maj+F6",
           "label": "Afficher les catégories"
         },
         "launcher-compact": {

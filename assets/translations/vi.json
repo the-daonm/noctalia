@@ -1749,7 +1749,7 @@
           "label": "Lối tắt Trang chủ"
         },
         "launcher-categories": {
-          "description": "Hiển thị bộ lọc danh mục trong Trình khởi chạy; chuyển đổi bằng Tab khi Trình khởi chạy đang mở",
+          "description": "Hiển thị bộ lọc danh mục trong Trình khởi chạy; hiện bằng F6, sau đó chuyển bằng F6 và Shift+F6",
           "label": "Hiển thị danh mục"
         },
         "launcher-compact": {

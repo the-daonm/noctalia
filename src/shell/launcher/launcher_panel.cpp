@@ -2,6 +2,7 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
+#include "core/key_modifiers.h"
 #include "core/key_symbols.h"
 #include "core/keybind_matcher.h"
 #include "core/ui_phase.h"
@@ -1198,31 +1199,38 @@ bool LauncherPanel::handleKeyEvent(std::uint32_t sym, std::uint32_t modifiers) {
     }
   };
 
-  if (KeySymbol::isTab(sym) && !m_currentCategories.empty()) {
-    m_categoryFilterVisible = !m_categoryFilterVisible;
-    setCategoryFilterVisible(m_categoryFilterVisible);
-    return true;
-  }
+  const auto categoryOptionCount = [this]() -> std::size_t {
+    if (m_currentCategories.empty() && !m_hasRecentlyUsed) {
+      return 0;
+    }
+    return m_currentCategories.size() + (m_hasRecentlyUsed ? 2u : 1u);
+  };
 
-  if (KeybindMatcher::matches(KeybindAction::Left, sym, modifiers)) {
-    if (m_categoryFilter != nullptr && m_categoryFilter->visible() && m_categoryFilter->selectedIndex() > 0) {
-      m_categoryFilter->setSelectedIndex(m_categoryFilter->selectedIndex() - 1);
+  const auto cycleCategory = [this, categoryOptionCount](bool reverse) {
+    if (m_categoryFilter == nullptr) {
+      return false;
+    }
+    const std::size_t total = categoryOptionCount();
+    if (total == 0) {
+      return false;
+    }
+
+    const bool wasVisible = m_categoryFilter->visible();
+    m_categoryFilterVisible = true;
+    setCategoryFilterVisible(true);
+    if (!wasVisible) {
       return true;
     }
-    return false;
-  }
 
-  if (KeybindMatcher::matches(KeybindAction::Right, sym, modifiers)) {
-    if (m_categoryFilter != nullptr && m_categoryFilter->visible()) {
-      const std::size_t next = m_categoryFilter->selectedIndex() + 1;
-      const std::size_t total = m_currentCategories.size()
-          + (m_hasRecentlyUsed ? 2 : 1); // +1 for "All" category, +2 for "Recently Used" if present
-      if (next < total) {
-        m_categoryFilter->setSelectedIndex(next);
-        return true;
-      }
-    }
-    return false;
+    const std::size_t selected = std::min(m_categoryFilter->selectedIndex(), total - 1);
+    const std::size_t next =
+        reverse ? (selected == 0 ? total - 1 : selected - 1) : (selected + 1 < total ? selected + 1 : 0);
+    m_categoryFilter->setSelectedIndex(next);
+    return true;
+  };
+
+  if (sym == XKB_KEY_F6 && (modifiers & ~(KeyMod::Shift)) == 0) {
+    return cycleCategory((modifiers & KeyMod::Shift) != 0);
   }
 
   if (KeySymbol::isPageUp(sym)) {

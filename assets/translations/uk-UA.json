@@ -1603,7 +1603,7 @@
           "label": "Головні ярлики"
         },
         "launcher-categories": {
-          "description": "Показати фільтри категорій у Launcher; перемикати за допомогою Tab, коли Launcher відкрито",
+          "description": "Показати фільтри категорій у Launcher; покажіть їх F6, потім перемикайте F6 і Shift+F6",
           "label": "Показати категорії"
         },
         "launcher-compact": {

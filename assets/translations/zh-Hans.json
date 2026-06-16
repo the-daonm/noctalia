@@ -1749,7 +1749,7 @@
           "label": "主页快捷方式"
         },
         "launcher-categories": {
-          "description": "在启动器中显示类别筛选；启动器打开时可用 Tab 键切换",
+          "description": "在启动器中显示类别筛选；按 F6 显示，之后用 F6 和 Shift+F6 切换",
           "label": "显示类别"
         },
         "launcher-compact": {

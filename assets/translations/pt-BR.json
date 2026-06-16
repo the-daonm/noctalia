@@ -1665,7 +1665,7 @@
           "label": "Atalhos do Início"
         },
         "launcher-categories": {
-          "description": "Mostrar filtros de categoria no launcher; alterne entre eles com a tecla Tab enquanto o launcher estiver aberto.",
+          "description": "Mostrar filtros de categoria no launcher; revele com F6 e depois alterne com F6 e Shift+F6.",
           "label": "Mostrar Categorias"
         },
         "launcher-compact": {
