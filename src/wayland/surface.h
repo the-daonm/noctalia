@@ -185,6 +185,11 @@ private:
   bool m_frameWorkQueued = false;
   bool m_frameTickPending = false;
   bool m_renderQueued = false;
+  // After a size-changing configure, wlroots compositors blank the surface for a frame
+  // (the resize-blank). We render the correct frame immediately, but the compositor only
+  // applies it cleanly on the *next* commit — so without follow-up the loop idles on the
+  // blank frame until an unrelated redraw. Push a short burst of extra renders to settle.
+  int m_postResizeRedraws = 0;
   float m_pendingFrameDeltaMs = 0.0f;
   std::uint32_t m_width = 0;
   std::uint32_t m_height = 0;

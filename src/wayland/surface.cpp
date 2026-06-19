@@ -309,6 +309,7 @@ bool Surface::createWlSurface() {
 }
 
 void Surface::onConfigure(std::uint32_t width, std::uint32_t height) {
+  const bool sizeChanged = (width != m_width || height != m_height);
   m_width = width;
   m_height = height;
   m_configured = true;
@@ -331,6 +332,20 @@ void Surface::onConfigure(std::uint32_t width, std::uint32_t height) {
         callbackMs, "surface configure callback took {:.1f}ms ({}, {}x{} logical)", callbackMs,
         static_cast<const void*>(this), m_width, m_height
     );
+  }
+  // A configure means the compositor discarded any frame in flight for the old size
+  // (wlroots blanks a layer surface for a frame on set_size). Drop the stale frame
+  // callback so the post-configure render registers a fresh one via requestFrame();
+  // otherwise requestFrame() short-circuits on the non-null callback, no new heartbeat
+  // is armed, and kickFrameLoop() strands every later redraw on the blanked buffer.
+  if (m_frameCallback != nullptr) {
+    wl_callback_destroy(m_frameCallback);
+    m_frameCallback = nullptr;
+  }
+  // The first post-resize commit is the one the compositor blanks; push a few more
+  // frames so the surface settles on a good frame instead of idling on the blank.
+  if (sizeChanged) {
+    m_postResizeRedraws = 3;
   }
   m_redrawRequested = true;
   queueFrameWork();
@@ -856,6 +871,9 @@ void Surface::render() {
     m_sceneRoot->clearDirty();
   }
   m_redrawRequested = false;
+  if (m_postResizeRedraws > 0) {
+    --m_postResizeRedraws;
+  }
 }
 
 void Surface::requestFrame() {
@@ -1028,7 +1046,7 @@ void Surface::processQueuedFrameWork() {
 void Surface::queueRenderIfNeeded() {
   const bool invalidated = m_sceneRoot != nullptr && (m_sceneRoot->paintDirty() || m_sceneRoot->layoutDirty());
   const bool animating = m_animationManager != nullptr && m_animationManager->hasActive();
-  if (m_redrawRequested || invalidated || animating) {
+  if (m_redrawRequested || invalidated || animating || m_postResizeRedraws > 0) {
     queueRender();
   }
 }
@@ -1061,7 +1079,7 @@ void Surface::renderQueuedFrame() {
   preparePendingFrame();
   const bool invalidated = m_sceneRoot != nullptr && (m_sceneRoot->paintDirty() || m_sceneRoot->layoutDirty());
   const bool animating = m_animationManager != nullptr && m_animationManager->hasActive();
-  if (m_redrawRequested || invalidated || animating) {
+  if (m_redrawRequested || invalidated || animating || m_postResizeRedraws > 0) {
     render();
   }
 }
