@@ -130,7 +130,7 @@ std::string osAgeLabel() {
   }
   const std::time_t now = std::time(nullptr);
   if (now <= 0 || static_cast<std::uint64_t>(now) <= oldest) {
-    return i18n::tr("system.os-age.less-than-day");
+    return i18n::tr("time.duration.less-than-day");
   }
 
   const std::uint64_t seconds = static_cast<std::uint64_t>(now) - oldest;
@@ -138,14 +138,14 @@ std::string osAgeLabel() {
   const std::uint64_t years = days / 365;
   const std::uint64_t months = (days % 365) / 30;
   if (years > 0) {
-    const std::string yearText = i18n::trp("system.os-age.years", static_cast<long>(years));
+    const std::string yearText = i18n::trp("time.units.year", static_cast<long>(years));
     if (months > 0) {
-      const std::string monthText = i18n::trp("system.os-age.months", static_cast<long>(months));
-      return i18n::tr("system.os-age.years-months", "years", yearText, "months", monthText);
+      const std::string monthText = i18n::trp("time.units.month", static_cast<long>(months));
+      return i18n::tr("time.duration.two-parts", "first", yearText, "second", monthText);
     }
     return yearText;
   }
-  return i18n::trp("system.os-age.days", static_cast<long>(days));
+  return i18n::trp("time.units.day", static_cast<long>(days));
 }
 
 std::string sessionDisplayName() {

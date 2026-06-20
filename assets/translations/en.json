@@ -3065,16 +3065,6 @@
       "unknown-cpu": "Unknown CPU",
       "unknown-distro": "Unknown distro",
       "unknown-gpu": "Unknown GPU"
-    },
-    "os-age": {
-      "days": "{count} day",
-      "days-plural": "{count} days",
-      "less-than-day": "less than 1 day",
-      "months": "{count} month",
-      "months-plural": "{count} months",
-      "years": "{count} year",
-      "years-months": "{years} {months}",
-      "years-plural": "{count} years"
     }
   },
   "theme": {
@@ -3092,10 +3082,10 @@
   },
   "time": {
     "duration": {
-      "days-hours-minutes": "{days}d {hours}h {minutes}m",
-      "hours-minutes": "{hours}h {minutes}m",
-      "less-than-minute": "<1m",
-      "minutes": "{minutes}m"
+      "less-than-day": "less than 1 day",
+      "less-than-minute": "less than 1 minute",
+      "three-parts": "{first} {second} {third}",
+      "two-parts": "{first} {second}"
     },
     "file": {
       "unknown": "Unknown"
@@ -3108,6 +3098,18 @@
       "just-now": "just now",
       "minutes-ago": "{count} min ago",
       "minutes-ago-plural": "{count} min ago"
+    },
+    "units": {
+      "day": "{count} day",
+      "day-plural": "{count} days",
+      "hour": "{count} hour",
+      "hour-plural": "{count} hours",
+      "minute": "{count} minute",
+      "minute-plural": "{count} minutes",
+      "month": "{count} month",
+      "month-plural": "{count} months",
+      "year": "{count} year",
+      "year-plural": "{count} years"
     }
   },
   "tray": {

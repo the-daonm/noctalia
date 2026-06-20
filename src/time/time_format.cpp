@@ -11,6 +11,7 @@
 #include <langinfo.h>
 #include <locale>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -44,6 +45,18 @@ namespace {
     }
     const long days = static_cast<long>(secs / 86400);
     return i18n::trp("time.relative.days-ago", days);
+  }
+
+  std::string formatDurationUnit(std::string_view key, std::uint64_t count) {
+    return i18n::trp(key, static_cast<long>(count));
+  }
+
+  std::string formatDurationParts(const std::string& first, const std::string& second) {
+    return i18n::tr("time.duration.two-parts", "first", first, "second", second);
+  }
+
+  std::string formatDurationParts(const std::string& first, const std::string& second, const std::string& third) {
+    return i18n::tr("time.duration.three-parts", "first", first, "second", second, "third", third);
   }
 
 } // namespace
@@ -361,13 +374,29 @@ std::string formatDuration(std::chrono::seconds duration) {
   rem %= 3600;
   const std::uint64_t minutes = rem / 60;
   if (days > 0) {
-    return i18n::tr("time.duration.days-hours-minutes", "days", days, "hours", hours, "minutes", minutes);
+    const std::string dayText = formatDurationUnit("time.units.day", days);
+    if (hours > 0 && minutes > 0) {
+      return formatDurationParts(
+          dayText, formatDurationUnit("time.units.hour", hours), formatDurationUnit("time.units.minute", minutes)
+      );
+    }
+    if (hours > 0) {
+      return formatDurationParts(dayText, formatDurationUnit("time.units.hour", hours));
+    }
+    if (minutes > 0) {
+      return formatDurationParts(dayText, formatDurationUnit("time.units.minute", minutes));
+    }
+    return dayText;
   }
   if (hours > 0) {
-    return i18n::tr("time.duration.hours-minutes", "hours", hours, "minutes", minutes);
+    const std::string hourText = formatDurationUnit("time.units.hour", hours);
+    if (minutes > 0) {
+      return formatDurationParts(hourText, formatDurationUnit("time.units.minute", minutes));
+    }
+    return hourText;
   }
   if (minutes > 0) {
-    return i18n::tr("time.duration.minutes", "minutes", minutes);
+    return formatDurationUnit("time.units.minute", minutes);
   }
   return i18n::tr("time.duration.less-than-minute");
 }
