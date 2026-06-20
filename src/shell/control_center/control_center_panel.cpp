@@ -21,11 +21,25 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <wayland-client-protocol.h>
 
 using namespace control_center;
 
 namespace {
+
   constexpr auto kMprisRefreshMinInterval = std::chrono::milliseconds(750);
+
+  [[nodiscard]] float normalizedScrollDelta(const InputArea::PointerData& data) {
+    float delta = data.scrollDelta(1.0f);
+    if (delta == 0.0f && data.axisValue120 != 0) {
+      delta = static_cast<float>(data.axisValue120) / 120.0f;
+    }
+    if (delta == 0.0f && data.axisDiscrete != 0) {
+      delta = static_cast<float>(data.axisDiscrete);
+    }
+    return delta;
+  }
+
 } // namespace
 
 ControlCenterPanel::ControlCenterPanel(
@@ -143,11 +157,12 @@ void ControlCenterPanel::create() {
                     PanelManager::instance().refresh();
                   },
               .configure =
-                  [scale](Button& button) {
+                  [this, scale](Button& button) {
                     if (button.label() != nullptr) {
                       button.label()->setFontWeight(FontWeight::Bold);
                       button.label()->setFontSize(Style::fontSizeBody * scale);
                     }
+                    wireSidebarScroll(button.inputArea());
                   },
           })
       );
@@ -589,6 +604,46 @@ void ControlCenterPanel::finishTabTransition() {
   m_tabTransitionActive = false;
   resetTabContainerTransforms();
   applyTabContainerVisibility(m_activeTab);
+}
+
+void ControlCenterPanel::wireSidebarScroll(InputArea* area) {
+  if (area == nullptr) {
+    return;
+  }
+  area->setOnAxis([this](const InputArea::PointerData& data) {
+    if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
+      return;
+    }
+    const float delta = normalizedScrollDelta(data);
+    if (delta == 0.0f) {
+      return;
+    }
+    selectAdjacentVisibleTab(delta > 0.0f ? 1 : -1);
+  });
+}
+
+void ControlCenterPanel::selectAdjacentVisibleTab(int direction) {
+  if (direction == 0) {
+    return;
+  }
+
+  const int activeOrdinal = visibleTabOrdinal(m_activeTab);
+  const int targetOrdinal = activeOrdinal + direction;
+
+  int ordinal = 0;
+  for (const auto& meta : kTabs) {
+    if (!isTabVisible(meta.id)) {
+      continue;
+    }
+    if (ordinal == targetOrdinal) {
+      if (meta.id != m_activeTab) {
+        selectTab(meta.id, true);
+        PanelManager::instance().refresh();
+      }
+      return;
+    }
+    ++ordinal;
+  }
 }
 
 void ControlCenterPanel::selectTab(TabId tab, bool animated) {

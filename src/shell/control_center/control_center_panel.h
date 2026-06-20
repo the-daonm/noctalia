@@ -134,6 +134,8 @@ private:
   }};
 
   void selectTab(TabId tab, bool animated = false);
+  void selectAdjacentVisibleTab(int direction);
+  void wireSidebarScroll(InputArea* area);
   void scheduleMprisRefreshFor(TabId tab);
   void updateTabChrome(TabId tab);
   void applyTabContainerVisibility(TabId activeTab);
