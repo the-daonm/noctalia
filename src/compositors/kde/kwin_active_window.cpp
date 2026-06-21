@@ -139,6 +139,13 @@ function desktopIdsFor(window) {
   return ids.join(",");
 }
 
+function outputNameFor(window) {
+  if (!window || window.output === undefined || window.output === null) {
+    return "";
+  }
+  return window.output.name || "";
+}
+
 function serializeWindow(window) {
   if (!shouldTrack(window)) {
     return "";
@@ -152,6 +159,7 @@ function serializeWindow(window) {
     window.resourceClass || "",
     window.caption || "",
     desktopIdsFor(window),
+    outputNameFor(window),
   ].join(FIELD_SEP);
 }
 
@@ -188,6 +196,9 @@ function wireWindow(window) {
   }
   if (typeof window.desktopsChanged !== "undefined") {
     window.desktopsChanged.connect(updateTracked);
+  }
+  if (typeof window.outputChanged !== "undefined") {
+    window.outputChanged.connect(updateTracked);
   }
 }
 
@@ -387,6 +398,7 @@ namespace compositors::kde {
                 .workspaceKey = {},
                 .appId = appId,
                 .title = title,
+                .outputName = window.outputName,
             }
         );
         continue;
@@ -405,6 +417,7 @@ namespace compositors::kde {
                 .workspaceKey = {},
                 .appId = appId,
                 .title = title,
+                .outputName = window.outputName,
             }
         );
         continue;
@@ -416,6 +429,7 @@ namespace compositors::kde {
                 .workspaceKey = desktopId,
                 .appId = window.appId,
                 .title = title,
+                .outputName = window.outputName,
             }
         );
       }
@@ -646,6 +660,7 @@ for (const window of workspace.windowList()) {{
           .uuid = fields[0],
           .appId = fields[1],
           .title = StringUtils::windowTitleSingleLine(fields[2]),
+          .outputName = fields.size() >= 5 ? fields[4] : std::string{},
           .desktopIds = {},
       };
       if (fields.size() >= 4 && !fields[3].empty() && fields[3] != "*") {
@@ -670,6 +685,7 @@ for (const window of workspace.windowList()) {{
         if (lhs.uuid != rhs.uuid
             || lhs.appId != rhs.appId
             || lhs.title != rhs.title
+            || lhs.outputName != rhs.outputName
             || lhs.desktopIds != rhs.desktopIds) {
           return true;
         }

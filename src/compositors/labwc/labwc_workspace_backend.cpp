@@ -162,6 +162,7 @@ std::vector<WorkspaceWindow> LabwcWorkspaceBackend::workspaceWindows(const std::
             .title = window.title,
             .x = window.x,
             .y = window.y,
+            .outputName = {},
         }
     );
   }

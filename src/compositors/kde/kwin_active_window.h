@@ -47,6 +47,7 @@ namespace compositors::kde {
       std::string uuid;
       std::string appId;
       std::string title;
+      std::string outputName;
       std::vector<std::string> desktopIds;
     };
 

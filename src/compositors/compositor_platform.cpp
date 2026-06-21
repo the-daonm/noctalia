@@ -473,14 +473,35 @@ namespace {
     return assignments;
   }
 
-  void applyKdeWorkspaceOccupancy(std::vector<Workspace>& workspaces, const std::vector<WorkspaceWindow>& tracked) {
-    if (workspaces.empty() || tracked.empty()) {
+  [[nodiscard]] std::vector<WorkspaceWindow>
+  kdeTrackedWindowsForOutput(const std::vector<WorkspaceWindow>& tracked, std::string_view outputName) {
+    if (outputName.empty()) {
+      return tracked;
+    }
+    std::vector<WorkspaceWindow> filtered;
+    filtered.reserve(tracked.size());
+    for (const auto& window : tracked) {
+      if (!outputName.empty()) {
+        if (window.outputName.empty() || window.outputName != outputName) {
+          continue;
+        }
+      }
+      filtered.push_back(window);
+    }
+    return filtered;
+  }
+
+  void applyKdeWorkspaceOccupancy(
+      std::vector<Workspace>& workspaces, const std::vector<WorkspaceWindow>& tracked, std::string_view outputName
+  ) {
+    const auto filtered = kdeTrackedWindowsForOutput(tracked, outputName);
+    if (workspaces.empty() || filtered.empty()) {
       return;
     }
 
     std::unordered_set<std::string> occupiedIds;
-    occupiedIds.reserve(tracked.size());
-    for (const auto& window : tracked) {
+    occupiedIds.reserve(filtered.size());
+    for (const auto& window : filtered) {
       if (window.workspaceKey.empty()) {
         continue;
       }
@@ -1022,7 +1043,7 @@ std::vector<Workspace> CompositorPlatform::workspaces() const {
     m_workspaceMetadataBackend->apply(current);
   }
   if (compositors::isKde() && m_kwinActiveWindow != nullptr && m_kwinActiveWindow->isAvailable()) {
-    applyKdeWorkspaceOccupancy(current, m_kwinActiveWindow->trackedWorkspaceWindows());
+    applyKdeWorkspaceOccupancy(current, m_kwinActiveWindow->trackedWorkspaceWindows(), {});
   }
   return current;
 }
@@ -1033,7 +1054,7 @@ std::vector<Workspace> CompositorPlatform::workspaces(wl_output* output) const {
     m_workspaceMetadataBackend->apply(current, connectorNameForOutput(output));
   }
   if (compositors::isKde() && m_kwinActiveWindow != nullptr && m_kwinActiveWindow->isAvailable()) {
-    applyKdeWorkspaceOccupancy(current, m_kwinActiveWindow->trackedWorkspaceWindows());
+    applyKdeWorkspaceOccupancy(current, m_kwinActiveWindow->trackedWorkspaceWindows(), connectorNameForOutput(output));
   }
   return current;
 }
@@ -1041,7 +1062,8 @@ std::vector<Workspace> CompositorPlatform::workspaces(wl_output* output) const {
 std::unordered_map<std::string, std::vector<std::string>>
 CompositorPlatform::appIdsByWorkspace(wl_output* outputFilter) const {
   if (compositors::isKde() && m_kwinActiveWindow != nullptr && m_kwinActiveWindow->isAvailable()) {
-    const auto tracked = m_kwinActiveWindow->trackedWorkspaceWindows();
+    const auto tracked =
+        kdeTrackedWindowsForOutput(m_kwinActiveWindow->trackedWorkspaceWindows(), connectorNameForOutput(outputFilter));
     if (!tracked.empty()) {
       const auto knownWorkspaces = this->workspaces(outputFilter);
       const auto assignments = kdeWorkspaceAssignmentsFromTracked(tracked, knownWorkspaces);
@@ -1076,7 +1098,8 @@ std::vector<std::string> CompositorPlatform::workspaceDisplayKeys(wl_output* out
 
 std::vector<WorkspaceWindowAssignment> CompositorPlatform::workspaceWindowAssignments(wl_output* outputFilter) const {
   if (compositors::isKde() && m_kwinActiveWindow != nullptr && m_kwinActiveWindow->isAvailable()) {
-    const auto tracked = m_kwinActiveWindow->trackedWorkspaceWindows();
+    const auto tracked =
+        kdeTrackedWindowsForOutput(m_kwinActiveWindow->trackedWorkspaceWindows(), connectorNameForOutput(outputFilter));
     if (!tracked.empty()) {
       return kdeWorkspaceAssignmentsFromTracked(tracked, this->workspaces(outputFilter));
     }

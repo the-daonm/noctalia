@@ -195,6 +195,7 @@ namespace {
               .title = StringUtils::windowTitleSingleLine(jsonStringValue(node, "name")),
               .x = x,
               .y = y,
+              .outputName = {},
           }
       );
     }

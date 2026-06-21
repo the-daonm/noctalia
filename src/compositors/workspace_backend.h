@@ -29,6 +29,7 @@ struct WorkspaceWindow {
   std::string title;
   std::int32_t x = 0;
   std::int32_t y = 0;
+  std::string outputName;
 };
 
 struct TaskbarWindowCandidate {

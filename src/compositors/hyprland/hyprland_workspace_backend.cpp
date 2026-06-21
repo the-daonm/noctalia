@@ -176,6 +176,7 @@ std::vector<WorkspaceWindow> HyprlandWorkspaceBackend::workspaceWindows(wl_outpu
             .title = toplevel.title,
             .x = toplevel.x,
             .y = toplevel.y,
+            .outputName = {},
         }
     );
   }
