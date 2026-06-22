@@ -48,7 +48,6 @@ namespace {
   constexpr float kCardInnerPad = Style::spaceMd;
   constexpr float kCloseButtonSize = 20.0f;
   constexpr float kCloseGlyphSize = 12.0f;
-  constexpr std::size_t kMaxNotificationActions = 6;
   constexpr float kNotificationIconSize = 45.0f;
   constexpr float kNotificationIconSizeCompact = 38.0f;
   constexpr float kNotificationIconGlyphSize = 24.0f;

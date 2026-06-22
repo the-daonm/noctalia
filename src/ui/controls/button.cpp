@@ -610,6 +610,21 @@ void Button::applyVisualState() {
   markPaintDirty();
 }
 
+void Button::applyLabelMaxWidth() {
+  if (m_label == nullptr) {
+    return;
+  }
+  const float maxBtnWidth = maxWidth();
+  if (maxBtnWidth > 0.0f) {
+    const float padding = paddingLeft() + paddingRight();
+    const float glyphW = (m_glyph != nullptr && m_glyph->visible()) ? m_glyph->width() + gap() : 0.0f;
+    m_label->setMaxWidth(std::max(0.0f, maxBtnWidth - padding - glyphW));
+    m_label->setEllipsize(TextEllipsize::End);
+  } else {
+    m_label->setMaxWidth(0.0f);
+  }
+}
+
 void Button::doLayout(Renderer& renderer) {
   const bool useCurrentSize = arrangingByLayout() || !sizeAssignedByLayout();
   const float assignedWidth = useCurrentSize ? width() : 0.0f;
@@ -618,16 +633,7 @@ void Button::doLayout(Renderer& renderer) {
   const bool glyphOnly = m_glyph != nullptr && !hasVisibleLabel;
 
   if (m_label != nullptr) {
-    const float maxBtnWidth = maxWidth();
-    if (maxBtnWidth > 0.0f) {
-      const float padding = paddingLeft() + paddingRight();
-      const float glyphW = (m_glyph != nullptr && m_glyph->visible()) ? m_glyph->width() + gap() : 0.0f;
-      const float labelMaxW = std::max(0.0f, maxBtnWidth - padding - glyphW);
-      m_label->setMaxWidth(labelMaxW);
-      m_label->setEllipsize(TextEllipsize::End);
-    } else {
-      m_label->setMaxWidth(0.0f);
-    }
+    applyLabelMaxWidth();
     m_label->measure(renderer);
   }
   if (m_glyph != nullptr) {
@@ -730,18 +736,7 @@ void Button::doLayout(Renderer& renderer) {
 }
 
 LayoutSize Button::doMeasure(Renderer& renderer, const LayoutConstraints& constraints) {
-  if (m_label != nullptr) {
-    const float maxBtnWidth = maxWidth();
-    if (maxBtnWidth > 0.0f) {
-      const float padding = paddingLeft() + paddingRight();
-      const float glyphW = (m_glyph != nullptr && m_glyph->visible()) ? m_glyph->width() + gap() : 0.0f;
-      const float labelMaxW = std::max(0.0f, maxBtnWidth - padding - glyphW);
-      m_label->setMaxWidth(labelMaxW);
-      m_label->setEllipsize(TextEllipsize::End);
-    } else {
-      m_label->setMaxWidth(0.0f);
-    }
-  }
+  applyLabelMaxWidth();
   return measureByLayout(renderer, constraints);
 }
 

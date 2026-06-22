@@ -3,6 +3,7 @@
 #include "config/config_types.h"
 #include "notification.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -26,6 +27,10 @@ struct NotificationHistoryEntry {
 };
 
 constexpr int32_t kDefaultNotificationTimeout = 6000;
+
+// Upper bound on action pairs (key + label) kept per notification. Enforced once at ingress
+// in addOrReplace(); render sites clamp defensively against the same value.
+constexpr std::size_t kMaxNotificationActions = 6;
 
 // Freedesktop expire_timeout: 0 = persistent, -1 = server default, positive = milliseconds.
 // Normalize once at Notify ingress so manager timers and toast countdowns stay aligned.

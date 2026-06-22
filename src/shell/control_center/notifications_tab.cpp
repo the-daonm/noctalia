@@ -60,8 +60,6 @@ namespace {
     return i18n::tr("notifications.actions.fallback");
   }
 
-  constexpr std::size_t kMaxNotificationActions = 6;
-
   float measureHistoryActionsRowHeight(
       Renderer& renderer, const std::vector<std::string>& actions, float cardTextWidth, float scale
   ) {

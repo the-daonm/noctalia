@@ -103,6 +103,9 @@ private:
 
   void applyColors(const Color& bg, const Color& border, const Color& label);
 
+  // Constrain the label to the button's max width (minus padding/glyph) and ellipsize on overflow.
+  void applyLabelMaxWidth();
+
   void ensureBadge();
 
   Glyph* m_glyph = nullptr;
@@ -143,8 +146,6 @@ class Renderer;
 // returns rows of buttons packed to fit maxWidth, gap between buttons
 std::vector<std::vector<std::unique_ptr<Button>>>
 wrapButtonsIntoRows(Renderer& renderer, std::vector<std::unique_ptr<Button>>& buttons, float maxWidth, float gap);
-
-class Flex;
 
 // Populates a container column with row sub-containers, applying layout alignment,
 // gaps, setFlexGrow(1.0f), and setMaxWidth for single-button rows.
