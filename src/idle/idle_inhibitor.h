@@ -33,9 +33,9 @@ public:
   void setChangeCallback(ChangeCallback callback);
 
   void registerIpc(IpcService& ipc, StateFeedbackCallback stateFeedback = {});
-  /// Re-resolve inhibitor anchors when output topology changes.
+  /// Re-resolve Wayland inhibitor anchors when output topology changes.
   void onOutputChange();
-  /// Re-resolve inhibitor anchors when anchor surfaces appear or disappear.
+  /// Re-sync inhibitors (Wayland fallback anchors only when logind is unavailable).
   void resyncAnchorSurfaces();
 
 private:

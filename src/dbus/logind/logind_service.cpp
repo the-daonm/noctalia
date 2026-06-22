@@ -133,6 +133,8 @@ void LogindService::syncSessionUnlocked() {
 
 bool LogindService::supportsIdleInhibit() const noexcept { return m_managerProxy != nullptr; }
 
+bool LogindService::hasIdleInhibit() const noexcept { return m_idleInhibitFd >= 0; }
+
 bool LogindService::acquireIdleInhibit() {
   if (m_idleInhibitFd >= 0) {
     return true;

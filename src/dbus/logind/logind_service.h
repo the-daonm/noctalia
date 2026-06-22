@@ -26,6 +26,7 @@ public:
   void syncSessionUnlocked();
 
   [[nodiscard]] bool supportsIdleInhibit() const noexcept;
+  [[nodiscard]] bool hasIdleInhibit() const noexcept;
   bool acquireIdleInhibit();
   void releaseIdleInhibit();
 

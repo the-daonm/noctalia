@@ -68,13 +68,18 @@ void IdleInhibitor::setChangeCallback(ChangeCallback callback) { m_changeCallbac
 
 void IdleInhibitor::syncInhibitor(bool logTransitions) {
   if (!m_enabled) {
-    destroyWaylandInhibitors(logTransitions);
+    destroyWaylandInhibitors(false);
     releaseLogindInhibit();
     return;
   }
 
-  syncWaylandInhibitors(logTransitions);
   syncLogindInhibit(logTransitions);
+  if (m_logind != nullptr && m_logind->hasIdleInhibit()) {
+    destroyWaylandInhibitors(false);
+    return;
+  }
+
+  syncWaylandInhibitors(logTransitions);
 }
 
 void IdleInhibitor::syncWaylandInhibitors(bool logTransitions) {
@@ -115,12 +120,7 @@ void IdleInhibitor::syncWaylandInhibitors(bool logTransitions) {
 }
 
 void IdleInhibitor::syncLogindInhibit(bool logTransitions) {
-  if (m_logind == nullptr) {
-    releaseLogindInhibit();
-    return;
-  }
-
-  if (!m_inhibitors.empty()) {
+  if (m_logind == nullptr || !m_logind->supportsIdleInhibit()) {
     releaseLogindInhibit();
     return;
   }

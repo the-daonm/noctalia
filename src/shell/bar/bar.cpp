@@ -1301,7 +1301,6 @@ void Bar::setInstanceIpcVisible(BarInstance& instance, bool visible) {
         if (inst->surface != nullptr) {
           inst->surface->requestRedraw();
         }
-        syncIdleInhibitorAnchors();
       },
       instance.slideRoot
   );
@@ -2157,9 +2156,8 @@ void Bar::revealAutoHideBar(BarInstance& instance) {
   const float current = instance.hideOpacity;
   wl_output* output = instance.output;
   const std::string barName = instance.barConfig.name;
-  const auto notifyAttachedPanel = [this, output, barName]() {
+  const auto notifyAttachedPanel = [output, barName]() {
     PanelManager::instance().onAttachedBarRevealSettled(output, barName);
-    syncIdleInhibitorAnchors();
   };
 
   constexpr float kSettledThreshold = 0.999f;
@@ -2254,7 +2252,6 @@ void Bar::startHideFadeOut(BarInstance& instance) {
         syncBarAutoHideInputRegion(*inst);
         syncBarSurfaceChrome(*inst);
         inst->surface->requestRedraw();
-        syncIdleInhibitorAnchors();
       },
       instance.slideRoot
   );
