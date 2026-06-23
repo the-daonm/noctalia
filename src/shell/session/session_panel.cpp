@@ -155,7 +155,7 @@ void SessionPanel::create() {
   for (std::size_t i = 0; i < m_visibleEntries.size(); ++i) {
     const auto& cfg = m_visibleEntries[i];
     if (cfg.shortcut.has_value() && cfg.shortcut->sym != 0) {
-      m_entryShortcutBadges.push_back(keyChordDisplayLabel(*cfg.shortcut));
+      m_entryShortcutBadges.emplace_back(keyChordDisplayLabel(*cfg.shortcut));
     } else {
       m_entryShortcutBadges.emplace_back();
     }
